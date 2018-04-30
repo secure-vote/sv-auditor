@@ -274,11 +274,13 @@ getBallots bbSC n incBallotProgress
     where
         getBallot i = do
             ballotN <- mToAff ("Unable to convert " <> show i <> " to uint256!") $ uIntNFromBigNumber uint256Px $ embed i
+            -- TODO: handle versioning between swm-v2 and sv-light BBs
             (Tuple3 ballotBytesN voterID blockNumberUint) <- bbSC ballotMap Latest ballotN
             voterPk <- bytesNToHex <$> bbSC curve25519Pubkeys Latest ballotN
             let ballot = bytesNToHex ballotBytesN
+                -- TODO: handle SV ID case (non-ethereum sending addresses)
+                voterAddr = unsafePartial fromJust $ mkAddress $ dropHex 12 $ bytesNToHex voterID
             incBallotProgress
-            let voterAddr = unsafePartial fromJust $ mkAddress $ dropHex 12 $ bytesNToHex voterID
             pure $ {i, ballot, voterPk, voterAddr}
 
 

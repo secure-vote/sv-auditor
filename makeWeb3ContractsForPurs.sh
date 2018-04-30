@@ -25,6 +25,9 @@ for file in ./_autogen/sv-light-contracts/_solDist/*.abi; do
         echo "skipping $file"
     fi
 done
+
+cp ./_autogen/sv-light-contracts/archive/swm-v2/SVLightBallotBox.abi ./tmpSolDist/BallotBoxVersion2.json
+
 ls ./tmpSolDist
 
 rm ./src/SecureVote/Contracts/* || true
