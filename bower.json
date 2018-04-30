@@ -1,0 +1,51 @@
+{
+  "name": "auditor",
+  "ignore": [
+    "**/.*",
+    "node_modules",
+    "bower_components",
+    "output"
+  ],
+  "dependencies": {
+    "purescript-prelude": "^3.3.0",
+    "purescript-console": "^3.0.0",
+    "purescript-lists": "^4.10.0",
+    "purescript-assert": "^3.0.0",
+    "purescript-yargs": "^3.1.0",
+    "purescript-exceptions": "^3.1.0",
+    "purescript-crypt-nacl": "^0.3.0",
+    "purescript-b64": "^0.0.3",
+    "purescript-format": "^3.0.0",
+    "purescript-integers": "^3.1.0",
+    "purescript-yarn": "^3.0.0",
+    "purescript-strings": "^3.3.1",
+    "purescript-quickcheck": "^4.6.0",
+    "purescript-node-process": "^5.0.0",
+    "purescript-foldable-traversable": "^3.6.1",
+    "purescript-spec-quickcheck": "^2.0.0",
+    "purescript-numbers": "^5.0.0",
+    "purescript-now": "^3.0.0",
+    "purescript-node-child-process": "^4.0.0",
+    "purescript-bytestrings": "^6.0.0",
+    "purescript-aff": "^4.0.0",
+    "purescript-arraybuffer": "^6.0.0",
+    "purescript-decimals": "^3.3.0",
+    "purescript-foreign-generic": "^5.0.0",
+    "purescript-foreign": "^4.0.1",
+    "purescript-argonaut-core": "^3.1.1",
+    "purescript-sized-vectors": "^2.2.0",
+    "purescript-ipfs-api": "https://github.com/secure-vote/purescript-ipfs-api.git#548295c49ddfd577bb2f7b79e814880b27479a0e",
+    "purescript-simple-json": "^2.0.1",
+    "purescript-record-show": "^0.4.0",
+    "purescript-affjax": "^5.0.0",
+    "purescript-web3": "^0.22.0",
+    "purescript-web3-generator": "^0.21.1"
+  },
+  "devDependencies": {
+    "purescript-psci-support": "^3.0.0",
+    "purescript-spec": "^2.0.0"
+  },
+  "resolutions": {
+    "purescript-arraybuffer-types": "^2.0.0"
+  }
+}
