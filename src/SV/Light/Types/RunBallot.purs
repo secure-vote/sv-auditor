@@ -26,12 +26,11 @@ type BallotInfo =
     , encSecKey :: Maybe HexString
     , nVotesCast :: Int
     , creationBlock :: Int
-    , startingBlockAround :: Int
     }
 
 
-mkBallotInfo :: HexString -> Int -> Int -> Maybe HexString -> Int -> Int -> Int -> BallotInfo
-mkBallotInfo = {bHash: _, startTime: _, endTime: _, encSecKey: _, nVotesCast: _, creationBlock: _, startingBlockAround: _}
+mkBallotInfo :: HexString -> Int -> Int -> Maybe HexString -> Int -> Int -> BallotInfo
+mkBallotInfo = {bHash: _, startTime: _, endTime: _, encSecKey: _, nVotesCast: _, creationBlock: _}
 
 
 type BallotScAddress = String

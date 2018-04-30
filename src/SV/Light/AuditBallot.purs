@@ -34,6 +34,7 @@ import Data.Record as R
 import Data.Set as Set
 import Data.Symbol (SProxy(..))
 import Data.Traversable (oneOf, sequence)
+import Debug.Trace (spy)
 import Global.Unsafe (unsafeStringify)
 import IPFS (IPFSEff)
 import Network.Ethereum.Core.BigNumber (pow, unsafeToInt)
@@ -73,14 +74,13 @@ getBallotInfo {bScAddr} = do
                      <*> (map (skCheck <<< bytesNToHex) $ pw3 $ ballotEncryptionSeckey tos Latest)
                      <*> (map uintToInt $ pw3 $ nVotesCast tos Latest)
                      <*> (map uintToInt $ pw3 $ creationBlock tos Latest)
-                     <*> (map uintToInt $ pw3 $ startingBlockAround tos Latest)
   where
     pw3 :: forall e2 a. Web3 (ref :: REF | e2) (Either CallError a) -> ParAff (eth :: ETH, ref :: REF | e2) a
     pw3 = parallel <<< (eToAff <=< eToAff <=< runWeb3_)
     -- transaction options
     tos = defaultTransactionOptions # _to .~ Just bScAddr
     uintToInt :: forall m a n. KnownSize n => UIntN n -> Int
-    uintToInt = unsafeToInt <<< unUIntN
+    uintToInt = unsafeToInt <<< spy <<< unUIntN
     skCheck a = if a == zeroHash then Nothing else Just a
 
 
