@@ -1,4 +1,4 @@
-module SV.AuditWeb where
+module SV.AuditWeb (main) where
 
 import SV.Prelude
 
