@@ -80,7 +80,7 @@ getBallotInfo {bScAddr} = do
     -- transaction options
     tos = defaultTransactionOptions # _to .~ Just bScAddr
     uintToInt :: forall m a n. KnownSize n => UIntN n -> Int
-    uintToInt = unsafeToInt <<< spy <<< unUIntN
+    uintToInt = unsafeToInt <<< unUIntN
     skCheck a = if a == zeroHash then Nothing else Just a
 
 
@@ -279,7 +279,7 @@ getBallots bbSC n incBallotProgress
             voterPk <- bytesNToHex <$> bbSC curve25519Pubkeys Latest ballotN
             let ballot = bytesNToHex ballotBytesN
                 -- TODO: handle SV ID case (non-ethereum sending addresses)
-                voterAddr = unsafePartial fromJust $ mkAddress $ dropHex 12 $ bytesNToHex voterID
+                voterAddr = unsafePartial fromJust $ mkAddress $ dropHex 24 $ bytesNToHex voterID
             incBallotProgress
             pure $ {i, ballot, voterPk, voterAddr}
 
