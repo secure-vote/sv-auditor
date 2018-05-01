@@ -88,6 +88,7 @@ getBallotInfo {bScAddr} = do
 
 getBallotSpec :: forall e. HexString -> Aff (ref :: REF, ipfs :: IPFSEff, buffer :: BUFFER, ajax :: AJAX | e) BallotSpec
 getBallotSpec h = do
+    -- todo: verify hash
     (exceptToAff <<< readJSON') =<< _getBallotSpec
   where
     getIpfs = do
@@ -176,6 +177,7 @@ runBallotCount {bInfo, bSpec, bbTos, ercTos, dlgtTos, silent} updateF = do
     balanceMap <- lift $ removeBannedAddrs <$> getBalances ercSC ballotStartBlock (allVoters <> allRelevantTknHolders)
     log $ "Got " <> show (Map.size balanceMap) <> " total balances"
 
+
     log $ "Calculating weighted ballots according to ERC20 balances..."
     -- | loop through addrs in balance map to find the first associated vote and associate balances
     let (weightedBallotsPre :: Array GetVoteResult) = onlyJust $ getVoteOrRecurse ballotMap delegateMap <$> Map.toUnfoldable balanceMap
@@ -185,7 +187,7 @@ runBallotCount {bInfo, bSpec, bbTos, ercTos, dlgtTos, silent} updateF = do
     let weightedBallots = R.modify (SProxy :: SProxy "bal") adjustBal <$> weightedBallotsPre
 
     log $ "Calculating final results..."
-    let (results :: Array BallotOptResult) = getResults ballotOptions weightedBallots
+    let (ballotResults :: Array BallotOptResult) = getResults ballotOptions weightedBallots
 
     -- let results = foldr (\{ballot: {ballot}, bal} m ->
     --                             Map.lookup ballot m
@@ -198,7 +200,7 @@ runBallotCount {bInfo, bSpec, bbTos, ercTos, dlgtTos, silent} updateF = do
 
     -- let getRes a = procBal $ Map.lookup a results
 
-    pure {nVotes, ballotResults: results}
+    pure {nVotes, ballotResults}
   where
     w3BB :: forall a b. (TransactionOptions _ -> b -> Web3 _ (Either CallError a)) -> b -> ExceptT String (Aff _) a
     w3BB r = w3Gen r bbTos

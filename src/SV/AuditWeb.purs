@@ -6,13 +6,14 @@ import Control.Monad.Aff (launchAff_, message)
 import Control.Monad.Aff.Console as AffC
 import Control.Monad.Error.Class (catchError)
 import Data.Argonaut.Core as J
+import Data.Argonaut.Core as J
 import Data.Int (toNumber)
 import Data.StrMap as SMap
 import Global.Unsafe (unsafeStringify)
 import SV.Light.AuditApp (app, AppArgs)
 import SV.Types.OutboundLogs (SUAux(..), OutAllDeets)
 import SV.Utils.BigNumber (bnToStr)
-import Simple.JSON (writeJSON)
+import Simple.JSON (write, writeJSON)
 
 
 main :: forall a e eff. AppArgs -> (J.Json -> Unit) -> Eff _ Unit
@@ -46,4 +47,4 @@ updateF2 f ({t, p}) = case p of
             J.fromObject
             $ SMap.insert "nVotes" (J.fromNumber $ toNumber nVotes)
             $ SMap.singleton "totals" $ J.fromObject $ convertCountToStr <$> ballotResults
-    convertCountToStr {count, nVotes} = J.fromString $ writeJSON {count: bnToStr $ count, nVotes}
+    convertCountToStr {count, nVotes} = J.fromObject $ SMap.fromFoldable [Tuple "count" $ J.fromString $ bnToStr count, Tuple "nVotes" $ J.fromNumber $ toNumber nVotes]
