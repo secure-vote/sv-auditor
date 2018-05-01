@@ -97,8 +97,8 @@ app {ethUrl, bScAddr, dev} updateF =
         let msgStart = exitMsgHeader exitC
         let msgBody = case ballotAns of
                 Left err -> err
-                Right {ballotResults: bRes} -> "\n\nResults:\n"
-                        <> foldr (\{name, count, nVotes} rem -> "\n" <> name <> " (" <> show nVotes <> "): " <> count) "" bRes
+                Right {ballotResults} -> "\n\nResults:\n"
+                        <> foldl (\rem {name, count, nVotes} -> rem <> "\n" <> name <> " (" <> show nVotes <> "): " <> count) "" ballotResults
         log $ "\n" <> msgStart <> "\n" <> msgBody
 
         let toRetE = case ballotAns of
@@ -111,5 +111,5 @@ app {ethUrl, bScAddr, dev} updateF =
             Left err -> pure $ Left $ Tuple exitC err
     where
         exitCode e = if isRight e then 0 else 1
-        exitMsgHeader exitC = if exitC == 0 then "___Success:___" else ">>> ERROR <<<"
+        exitMsgHeader exitC = if exitC == 0 then ">>> SUCCESS <<<" else ">>> ERROR <<<"
         mkBResStrMap bRes = StrMap.fromFoldable $ (\{name, count, nVotes} -> Tuple name {count, nVotes}) <$> bRes

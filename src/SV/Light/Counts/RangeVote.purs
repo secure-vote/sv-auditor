@@ -48,12 +48,14 @@ countRange offsetTyp opts weightedBallots = case offsetTyp of
     doCountRange {rangeMax, offset} = procdBallots
                             # foldr addVecToOpts Map.empty
                             # Map.toUnfoldable
-                            # map (\(Tuple i (Tuple count nVotes)) -> {name: getName i, count, nVotes})
+                            # map (\(Tuple i (Tuple count nVotes)) -> getName i <#> {name: _, count, nVotes})
+                            # Arr.filter isJust
+                            # map (unsafePartial fromJust)
       where
         rawOpts = map unwrap opts
         names = R.get (SProxy :: SProxy "optionTitle") <$> rawOpts
         nameLookup = Map.fromFoldable $ Arr.zip (Arr.range 0 (nOpts - 1)) names
-        getName i = unsafePartial fromJust $ Map.lookup i nameLookup
+        getName i = Map.lookup i nameLookup
         procdBallots =
             weightedBallots
             -- pull ballots out from internal structure - HexString

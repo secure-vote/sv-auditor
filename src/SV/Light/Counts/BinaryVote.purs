@@ -34,5 +34,5 @@ countBinary weightedBallots =
     in
     [ {name: "yes", count: countYes, nVotes: nVotesYes}
     , {name: "no", count: countNo, nVotes: nVotesNo}
-    , {name: "invalid ballots", count: invalidCount, nVotes: invalidNVotes}
+    , {name: "invalid", count: invalidCount, nVotes: invalidNVotes}
     ]
