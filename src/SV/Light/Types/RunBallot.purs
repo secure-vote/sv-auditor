@@ -3,7 +3,6 @@ module SV.Light.Types.RunBallot where
 import SV.Prelude
 
 import Control.Monad.Eff.Ref (REF)
-import Data.Decimal (Decimal)
 import Data.Map (Map)
 import Network.Ethereum.Web3.Types (Address, BigNumber, CallError, ChainCursor, ETH, NoPay, Web3(..))
 import Network.Ethereum.Web3.Types (HexString, TransactionOptions(..))
@@ -12,11 +11,12 @@ import SV.Light.Types.BallotBox (BallotFromSC, BallotOperations)
 
 
 type BallotOptResult = {name :: String, count :: BigNumber, nVotes :: Int}
-type BallotResult = {nVotes :: Int, ballotResults :: Array BallotOptResult}
+type BallotStrOptResult = {name :: String, count :: String, nVotes :: Int}
+type BallotResult = {nVotes :: Int, ballotResults :: Array BallotStrOptResult}
 type GetVoteResult = {origVoter :: Address, ballot :: BallotFromSC, bal :: BigNumber}
 
 type TxOpts = TransactionOptions NoPay
-type RunBallotArgs = {bInfo :: BallotInfo, bSpec :: BallotSpec, bbTos :: TxOpts, ercTos :: TxOpts, dlgtTos :: TxOpts, silent :: Boolean}
+type RunBallotArgs = {bInfo :: BallotInfo, bSpec :: BallotSpec, bbTos :: TxOpts, ercTos :: TxOpts, dlgtTos :: TxOpts, silent :: Boolean, dev :: Boolean}
 
 
 type BallotInfo =

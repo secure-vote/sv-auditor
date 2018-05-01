@@ -47,4 +47,4 @@ updateF2 f ({t, p}) = case p of
             J.fromObject
             $ SMap.insert "nVotes" (J.fromNumber $ toNumber nVotes)
             $ SMap.singleton "totals" $ J.fromObject $ convertCountToStr <$> ballotResults
-    convertCountToStr {count, nVotes} = J.fromObject $ SMap.fromFoldable [Tuple "count" $ J.fromString $ bnToStr count, Tuple "nVotes" $ J.fromNumber $ toNumber nVotes]
+    convertCountToStr {count, nVotes} = J.fromObject $ SMap.fromFoldable [Tuple "count" $ J.fromString count, Tuple "nVotes" $ J.fromNumber $ toNumber nVotes]

@@ -91,14 +91,14 @@ app {ethUrl, bScAddr, dev} updateF =
             ercTos = defaultTransactionOptions # _to .~ Just (bSpec ^. _erc20Addr)
             dlgtTos = defaultTransactionOptions # _to .~ Just (dlgtAddr {dev})
 
-        ballotAns <- runExceptT $ runBallotCount {bInfo, bSpec, bbTos, ercTos, dlgtTos, silent: false} updateF
+        ballotAns <- runExceptT $ runBallotCount {bInfo, bSpec, bbTos, ercTos, dlgtTos, silent: false, dev} updateF
 
         let exitC = exitCode ballotAns
         let msgStart = exitMsgHeader exitC
         let msgBody = case ballotAns of
                 Left err -> err
                 Right {ballotResults: bRes} -> "\n\nResults:\n"
-                        <> foldr (\{name, count} rem -> "\n" <> name <> ": " <> bnToStr count) "" bRes
+                        <> foldr (\{name, count, nVotes} rem -> "\n" <> name <> " (" <> show nVotes <> "): " <> count) "" bRes
         log $ "\n" <> msgStart <> "\n" <> msgBody
 
         let toRetE = case ballotAns of

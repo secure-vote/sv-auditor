@@ -20,17 +20,18 @@ import Control.Monad.Except (ExceptT, lift)
 import Control.Monad.Rec.Class (Step(..), tailRec, tailRecM)
 import Control.Parallel (parTraverse)
 import Crypt.NaCl (BoxSecretKey)
-import Data.Array (concat, foldr, last, range)
+import Data.Array (concat, foldr, intercalate, last, range)
 import Data.Array as Arr
 import Data.Array as Array
 import Data.Decimal as Dec
-import Data.Int (round, toNumber)
+import Data.Int (decimal, round, toNumber)
 import Data.Int as DInt
 import Data.Lens ((.~), (^.), _1, _2)
-import Data.Map (Map, fromFoldable)
+import Data.Map (Map, fromFoldable, showTree)
 import Data.Map as Map
 import Data.Newtype (unwrap, wrap)
 import Data.Record as R
+import Data.Record.ShowRecord (showRecord)
 import Data.Set as Set
 import Data.Symbol (SProxy(..))
 import Data.Traversable (oneOf, sequence)
@@ -38,6 +39,7 @@ import Debug.Trace (spy)
 import Global.Unsafe (unsafeStringify)
 import IPFS (IPFSEff)
 import Network.Ethereum.Core.BigNumber (pow, unsafeToInt)
+import Network.Ethereum.Core.BigNumber as BN
 import Network.Ethereum.Core.HexString (dropHex)
 import Network.Ethereum.Web3 (type (:&), Address, BigNumber, Block(..), CallError, ChainCursor(..), D2, D5, D6, DLProxy(..), DOne, ETH, HexString, TransactionOptions, UIntN, _to, defaultTransactionOptions, embed, mkAddress, mkHexString, uIntNFromBigNumber, unHex, unUIntN)
 import Network.Ethereum.Web3.Api (eth_blockNumber, eth_getBlockByNumber)
@@ -53,9 +55,10 @@ import Partial.Unsafe (unsafePartial)
 import SV.Light.Counts (countBinary, countRange, RangeOffset(..))
 import SV.Light.Delegation (getDelegates)
 import SV.Light.IPFS (getBlock)
-import SV.Light.Types.Eth (UInt256, uint256Px)
 import SV.Light.Types.BallotBox (determineBallotVersion)
+import SV.Light.Types.Eth (UInt256, uint256Px)
 import SV.Types.OutboundLogs (mkSUFail, mkSULog, mkSUWarn)
+import SV.Utils.BigNumber (bnToDec)
 import SecureVote.Contracts.FakeErc20 (balanceOf, decimals)
 import SecureVote.Contracts.SVLightBallotBox (ballotEncryptionSeckey, ballotMap, creationBlock, curve25519Pubkeys, endTime, getEncSeckey, nVotesCast, specHash, startTime, startingBlockAround)
 import SecureVote.Utils.Array (chunk, fromList, onlyJust)
@@ -114,7 +117,7 @@ getBallotSpec h = do
 
 
 runBallotCount :: RunBallotArgs -> (_ -> Unit) -> ExceptT String (Aff _) BallotResult
-runBallotCount {bInfo, bSpec, bbTos, ercTos, dlgtTos, silent} updateF = do
+runBallotCount {bInfo, bSpec, bbTos, ercTos, dlgtTos, silent, dev} updateF = do
     nowTime <- lift $ liftEff $ round <$> currentTimestamp
     -- todo: use ballotInfo start and end times
     let endTime = bSpec ^. _endTime
@@ -176,29 +179,23 @@ runBallotCount {bInfo, bSpec, bbTos, ercTos, dlgtTos, silent} updateF = do
     let allRelevantTknHolders = fromList $ Map.keys delegateMap
     balanceMap <- lift $ removeBannedAddrs <$> getBalances ercSC ballotStartBlock (allVoters <> allRelevantTknHolders)
     log $ "Got " <> show (Map.size balanceMap) <> " total balances"
+    logDev $ "Balances: \n" <> show balanceMap
 
 
     log $ "Calculating weighted ballots according to ERC20 balances..."
     -- | loop through addrs in balance map to find the first associated vote and associate balances
-    let (weightedBallotsPre :: Array GetVoteResult) = onlyJust $ getVoteOrRecurse ballotMap delegateMap <$> Map.toUnfoldable balanceMap
+    let (weightedBallots :: Array GetVoteResult) = onlyJust $ getVoteOrRecurse ballotMap delegateMap <$> Map.toUnfoldable balanceMap
+    logDev $ "Weighted Ballots: \n" <> intercalate "\n" ( showRecord <$> weightedBallots )
 
-    -- | adjust totals in weightedBallotsPre according to ERC20 DPS
-    adjustBal <- lift mkAdjustBalF
-    let weightedBallots = R.modify (SProxy :: SProxy "bal") adjustBal <$> weightedBallotsPre
+    -- | allow us to adjust totals in weightedBallotsPre according to ERC20 DPS
+    dps <- lift $ (unsafeToInt <<< unUIntN) <$> ercSC (web3NoArgs decimals) Latest unit
 
     log $ "Calculating final results..."
-    let (ballotResults :: Array BallotOptResult) = getResults ballotOptions weightedBallots
-
-    -- let results = foldr (\{ballot: {ballot}, bal} m ->
-    --                             Map.lookup ballot m
-    --                             # fromMaybe (embed 0)
-    --                             # \v -> Map.insert ballot (v + bal) m)
-    --                     Map.empty weightedBallots
-
-    -- let ballotYes = unsafePartial fromJust $ mkHexString "8000000000000000000000000000000000000000000000000000000000000000"
-    --     ballotNo = unsafePartial fromJust $ mkHexString "4000000000000000000000000000000000000000000000000000000000000000"
-
-    -- let getRes a = procBal $ Map.lookup a results
+    let ballotResults =
+            getResults ballotOptions weightedBallots
+            -- modify values to show a decimal string according to ERC20 DPS
+            <#> R.modify (SProxy :: SProxy "count")
+                (bnToDec >>> flip (/) (Dec.pow (Dec.fromInt 10) $ Dec.fromInt dps) >>> Dec.toFixed dps)
 
     pure {nVotes, ballotResults}
   where
@@ -222,6 +219,8 @@ runBallotCount {bInfo, bSpec, bbTos, ercTos, dlgtTos, silent} updateF = do
 
     log :: forall e. String -> ExceptT String (Aff _) Unit
     log str = lift $ logAff str
+
+    logDev str = if dev then log str else pure unit
 
     logAff :: forall e. String -> Aff _ Unit
     logAff str = do
@@ -247,9 +246,7 @@ runBallotCount {bInfo, bSpec, bbTos, ercTos, dlgtTos, silent} updateF = do
 
     web3NoArgs f txOpts cc _ = f txOpts cc
 
-    mkAdjustBalF = do
-        dps <- (unsafeToInt <<< unUIntN) <$> ercSC (web3NoArgs decimals) Latest unit
-        pure $ (*) (recip $ pow (embed 10) dps)
+    adjustBal dps = (*) (pow (embed 10) $ 0 - dps)
 
 
 -- | Log and increment the number of ballots we've processed to facilitate progress updates

@@ -6,6 +6,15 @@
   "repository": "git@github.com/secure-vote/sv-auditor",
   "author": "Max Kaye (SecureVote)",
   "license": "NONE(yet)",
+  "browserify-shim": {
+    "sodium": "global:MEH",
+    "secp256k1": "global:MEH"
+  },
+  "browserify": {
+    "transform": [
+      "browserify-shim"
+    ]
+  },
   "dependencies": {
     "bn.js": "^4.11.8",
     "crypto-js": "^3.1.9-1",
@@ -16,6 +25,7 @@
     "js-nacl": "^1.2.2",
     "js-sha256": "^0.9.0",
     "keccak": "^1.4.0",
+    "node-process": "^1.0.1",
     "pulp": "^12.0.1",
     "purescript": "^0.11.6",
     "purs": "^0.0.9",
@@ -24,15 +34,22 @@
     "rlp": "^2.0.0",
     "sanctuary": "^0.13.2",
     "secp256k1": "^3.5.0",
-    "text-encoding": "^0.6.4"
+    "sodium": "^2.0.3",
+    "spawn-sync": "^1.0.15",
+    "text-encoding": "^0.6.4",
+    "try-thread-sleep": "^1.0.2",
+    "yargs": "^11.0.0"
   },
-  "devDependencies": {},
+  "devDependencies": {
+    "browserify-shim": "^3.8.14"
+  },
   "scripts": {
     "----- PureScript (Aduit + Admin)": "",
     "audit-run-w": "cd _pureDist && reflex -g .notify -s -- ./runAudit.sh --bScAddr 0x3b8315cbef53ce497bc993491b7c9743549ab395",
     "audit-dev": "pulp -w --then 'date +%s > _pureDist/.notify' build --main SV.AuditCLI --to _pureDist/audit-dev.js",
     "audit-prod": "pulp build --main SV.AuditCLI -j 2 --to _pureDist/audit-cli.js",
     "audit-prod-web": "pulp browserify --standalone SvAudit --main SV.AuditWeb -j 2 --to _pureDist/audit-web.js --skip-entry-point --optimise",
+    "audit-dev-web": "pulp -w browserify --standalone SvAudit --main SV.AuditWeb -j 2 --to _pureDist/audit-web.js --skip-entry-point -O",
     "admin-dev": "pulp -w build --main SecureVote.Democs.SwarmMVP.Admin -j 2 --to _pureDist/admin.js",
     "admin-prod": "pulp build --main SecureVote.Democs.SwarmMVP.Admin -j 2 --to _pureDist/admin.js",
     "purs-test": "pulp -w test --test-path test",

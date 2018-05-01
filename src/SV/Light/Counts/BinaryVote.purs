@@ -3,6 +3,7 @@ module SV.Light.Counts.BinaryVote where
 import SV.Light.Types.RunBallot
 import SV.Prelude
 
+import Data.Array as Arr
 import Data.Foldable (foldr)
 import Data.Map as Map
 import Network.Ethereum.Web3 (embed, mkHexString)
@@ -29,7 +30,7 @@ countBinary weightedBallots =
         getNVotes matchThis = fromMaybe 0 $ Map.lookup matchThis nVotesMap
         nVotesYes = getNVotes ballotYes
         nVotesNo = getNVotes ballotNo
-        invalidNVotes = Map.size nVotesMap - nVotesYes - nVotesNo
+        invalidNVotes = Arr.length weightedBallots - nVotesYes - nVotesNo
     in
     [ {name: "yes", count: countYes, nVotes: nVotesYes}
     , {name: "no", count: countNo, nVotes: nVotesNo}
