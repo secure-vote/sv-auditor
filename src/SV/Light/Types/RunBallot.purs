@@ -8,7 +8,7 @@ import Data.Map (Map)
 import Network.Ethereum.Web3.Types (Address, BigNumber, CallError, ChainCursor, ETH, NoPay, Web3(..))
 import Network.Ethereum.Web3.Types (HexString, TransactionOptions(..))
 import SV.Light.Types.Ballot (BallotSpec)
-import SV.Light.Types.BallotBox (BallotFromSC)
+import SV.Light.Types.BallotBox (BallotFromSC, BallotOperations)
 
 
 type BallotOptResult = {name :: String, count :: BigNumber}
@@ -26,11 +26,12 @@ type BallotInfo =
     , encSecKey :: Maybe HexString
     , nVotesCast :: Int
     , creationBlock :: Int
+    , ballotOps :: BallotOperations
     }
 
 
-mkBallotInfo :: HexString -> Int -> Int -> Maybe HexString -> Int -> Int -> BallotInfo
-mkBallotInfo = {bHash: _, startTime: _, endTime: _, encSecKey: _, nVotesCast: _, creationBlock: _}
+mkBallotInfo :: HexString -> Int -> Int -> Maybe HexString -> Int -> Int -> BallotOperations -> BallotInfo
+mkBallotInfo = {bHash: _, startTime: _, endTime: _, encSecKey: _, nVotesCast: _, creationBlock: _, ballotOps: _}
 
 
 type BallotScAddress = String

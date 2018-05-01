@@ -54,6 +54,7 @@ import SV.Light.Counts (countBinary, countRange, RangeOffset(..))
 import SV.Light.Delegation (getDelegates)
 import SV.Light.IPFS (getBlock)
 import SV.Light.Types.Eth (UInt256, uint256Px)
+import SV.Light.Types.BallotBox (determineBallotVersion)
 import SV.Types.OutboundLogs (mkSUFail, mkSULog, mkSUWarn)
 import SecureVote.Contracts.FakeErc20 (balanceOf, decimals)
 import SecureVote.Contracts.SVLightBallotBox (ballotEncryptionSeckey, ballotMap, creationBlock, curve25519Pubkeys, endTime, getEncSeckey, nVotesCast, specHash, startTime, startingBlockAround)
@@ -74,6 +75,7 @@ getBallotInfo {bScAddr} = do
                      <*> (map (skCheck <<< bytesNToHex) $ pw3 $ ballotEncryptionSeckey tos Latest)
                      <*> (map uintToInt $ pw3 $ nVotesCast tos Latest)
                      <*> (map uintToInt $ pw3 $ creationBlock tos Latest)
+                     <*> (parallel $ determineBallotVersion bScAddr)
   where
     pw3 :: forall e2 a. Web3 (ref :: REF | e2) (Either CallError a) -> ParAff (eth :: ETH, ref :: REF | e2) a
     pw3 = parallel <<< (eToAff <=< eToAff <=< runWeb3_)
@@ -113,17 +115,13 @@ getBallotSpec h = do
 runBallotCount :: RunBallotArgs -> (_ -> Unit) -> ExceptT String (Aff _) BallotResult
 runBallotCount {bInfo, bSpec, bbTos, ercTos, dlgtTos, silent} updateF = do
     nowTime <- lift $ liftEff $ round <$> currentTimestamp
+    -- todo: use ballotInfo start and end times
     let endTime = bSpec ^. _endTime
         startTime = bInfo.startTime
         tknAddr = unsafePartial fromJust $ ercTos ^. _to
     log $ "Ballot StartTime: " <> show startTime <> ", Ballot EndTime: " <> show endTime <> ", Current Time: " <> show nowTime
 
     let ballotOptions = bSpec ^. _options
-
-        -- then pure unit
-        -- else do
-        --     fail "Only binary ballots supported currently"
-        --     throwError "Only binary ballots supported currently"
 
     blocksFibre <- lift $ forkAff $ do
         logAff $ "Finding Eth block close to time: " <> show startTime <> " (takes 10-20 seconds)"

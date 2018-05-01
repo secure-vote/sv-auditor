@@ -5,7 +5,7 @@ import SV.Prelude
 
 import Data.Foldable (foldr)
 import Data.Map as Map
-import Network.Ethereum.Web3 (mkHexString)
+import Network.Ethereum.Web3 (embed, mkHexString)
 import Partial.Unsafe (unsafePartial)
 import SV.Utils.BigNumber (bnFromMDef0)
 
@@ -17,7 +17,11 @@ countBinary weightedBallots =
                         Map.empty weightedBallots
         ballotYes = unsafePartial fromJust $ mkHexString "8000000000000000000000000000000000000000000000000000000000000000"
         ballotNo = unsafePartial fromJust $ mkHexString "4000000000000000000000000000000000000000000000000000000000000000"
+        getNVotes matchThis = bnFromMDef0 $ Map.lookup matchThis resultsMap
+        countYes = getNVotes ballotYes
+        countNo = getNVotes ballotNo
     in
-    [ {name: "yes", count: bnFromMDef0 $ Map.lookup ballotYes resultsMap}
-    , {name: "no", count: bnFromMDef0 $ Map.lookup ballotNo resultsMap}
+    [ {name: "yes", count: countYes}
+    , {name: "no", count: countNo}
+    , {name: "invalid ballots", count: embed (Map.size resultsMap) - countYes - countNo }
     ]
