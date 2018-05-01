@@ -48,7 +48,7 @@ countRange offsetTyp opts weightedBallots = case offsetTyp of
     doCountRange {rangeMax, offset} = procdBallots
                             # foldr addVecToOpts Map.empty
                             # Map.toUnfoldable
-                            # map (\(Tuple i count) -> {name: getName i, count})
+                            # map (\(Tuple i (Tuple count nVotes)) -> {name: getName i, count, nVotes})
       where
         rawOpts = map unwrap opts
         names = R.get (SProxy :: SProxy "optionTitle") <$> rawOpts
@@ -59,14 +59,17 @@ countRange offsetTyp opts weightedBallots = case offsetTyp of
             -- pull ballots out from internal structure - HexString
             <#> (\{ballot: {ballot}, bal} -> {b: ballot, bal})
                 >>> \{b, bal} -> {bal, vs: hexToRangeBallot {rangeMax, nOpts, offset} b}
-        addVecToOpts :: {bal :: BigNumber, vs :: Array Int} -> Map.Map Int BigNumber -> Map.Map Int BigNumber
+        addVecToOpts :: {bal :: BigNumber, vs :: Array Int} -> Map.Map Int _ -> Map.Map Int _
         addVecToOpts {bal, vs} m =
             -- multiply votes by balance
             map (embed >>> (*) bal) vs
             -- essentially zip with the index
             # Arr.mapWithIndex Tuple
             -- then add to existing entry in Map for that option number
-            # foldr (\(Tuple i v) -> Map.alter (fromMaybe (embed 0) >>> (+) v >>> Just) i) m
+            # foldr alterAddResult m
+        alterAddResult (Tuple i v) =
+            Map.alter (fromMaybe (Tuple (embed 0) 0)
+                       >>> (\(Tuple c n) -> Tuple (c + v) (n + 1) # Just)) i
 
 
 

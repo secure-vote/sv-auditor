@@ -6,7 +6,7 @@ import Data.StrMap (StrMap)
 import Network.Ethereum.Web3 (BigNumber)
 
 
-type OutAllDeets = {nVotes :: Int, ballotResults :: StrMap BigNumber}
+type OutAllDeets = {nVotes :: Int, ballotResults :: StrMap ({count :: BigNumber, nVotes :: Int})}
 
 data SUAux = SuStr String | SuRes OutAllDeets | SuBal String | SuDlgt String
 

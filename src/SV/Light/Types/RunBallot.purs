@@ -11,7 +11,7 @@ import SV.Light.Types.Ballot (BallotSpec)
 import SV.Light.Types.BallotBox (BallotFromSC, BallotOperations)
 
 
-type BallotOptResult = {name :: String, count :: BigNumber}
+type BallotOptResult = {name :: String, count :: BigNumber, nVotes :: Int}
 type BallotResult = {nVotes :: Int, ballotResults :: Array BallotOptResult}
 type GetVoteResult = {origVoter :: Address, ballot :: BallotFromSC, bal :: BigNumber}
 

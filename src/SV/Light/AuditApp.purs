@@ -112,4 +112,4 @@ app {ethUrl, bScAddr, dev} updateF =
     where
         exitCode e = if isRight e then 0 else 1
         exitMsgHeader exitC = if exitC == 0 then "___Success:___" else ">>> ERROR <<<"
-        mkBResStrMap bRes = StrMap.fromFoldable $ (\{name, count} -> Tuple name count) <$> bRes
+        mkBResStrMap bRes = StrMap.fromFoldable $ (\{name, count, nVotes} -> Tuple name {count, nVotes}) <$> bRes

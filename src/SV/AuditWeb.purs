@@ -12,6 +12,7 @@ import Global.Unsafe (unsafeStringify)
 import SV.Light.AuditApp (app, AppArgs)
 import SV.Types.OutboundLogs (SUAux(..), OutAllDeets)
 import SV.Utils.BigNumber (bnToStr)
+import Simple.JSON (writeJSON)
 
 
 main :: forall a e eff. AppArgs -> (J.Json -> Unit) -> Eff _ Unit
@@ -44,4 +45,5 @@ updateF2 f ({t, p}) = case p of
     procRes {nVotes, ballotResults} =
             J.fromObject
             $ SMap.insert "nVotes" (J.fromNumber $ toNumber nVotes)
-            $ SMap.singleton "totals" $ J.fromObject $ (J.fromString <<< bnToStr) <$> ballotResults
+            $ SMap.singleton "totals" $ J.fromObject $ convertCountToStr <$> ballotResults
+    convertCountToStr {count, nVotes} = J.fromString $ writeJSON {count: bnToStr $ count, nVotes}
