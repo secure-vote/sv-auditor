@@ -35,7 +35,7 @@ import Data.Record.ShowRecord (showRecord)
 import Data.Set as Set
 import Data.Symbol (SProxy(..))
 import Data.Traversable (oneOf, sequence)
-import Debug.Trace (spy)
+import Debug.Trace (class DebugWarning, spy)
 import Global.Unsafe (unsafeStringify)
 import IPFS (IPFSEff)
 import Network.Ethereum.Core.BigNumber (pow, unsafeToInt)
@@ -221,10 +221,13 @@ runBallotCount {bInfo, bSpec, bbTos, ercTos, dlgtTos, silent, dev} updateF = do
     log str = lift $ logAff str
 
     logBalances :: BalanceMap -> Aff _ Unit
-    logBalances = pure <<< updateF <<< mkSUBal
+    logBalances = pure <<< updateF <<< spyDev <<< mkSUBal
 
     logDelegates :: DelegateMap -> Aff _ Unit
-    logDelegates = pure <<< updateF <<< mkSUDlgts
+    logDelegates = pure <<< updateF <<< spyDev <<< mkSUDlgts
+
+    spyDev :: forall a. a -> a
+    spyDev a = if dev then spy a else a
 
     logDev str = if dev then log str else pure unit
 
