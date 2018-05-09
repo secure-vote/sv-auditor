@@ -8,8 +8,11 @@ import Control.Monad.Error.Class (catchError)
 import Data.Argonaut.Core as J
 import Data.Argonaut.Core as J
 import Data.Int (toNumber)
+import Data.Map (Map, toUnfoldable)
 import Data.StrMap as SMap
 import Global.Unsafe (unsafeStringify)
+import Network.Ethereum.Core.BigNumber (BigNumber)
+import Network.Ethereum.Core.Signatures (Address)
 import SV.Light.AuditApp (app, AppArgs)
 import SV.Types.OutboundLogs (SUAux(..), OutAllDeets)
 import SV.Utils.BigNumber (bnToStr)
@@ -37,14 +40,25 @@ updateF2 :: (_ -> Unit) -> {t :: String, p :: SUAux} -> Unit
 updateF2 f ({t, p}) = case p of
     SuStr p_ -> f $ toJson J.fromString t p_
     SuRes p_ -> f $ toJson procRes t p_
-    SuBal p_ -> f $ toJson J.fromString t p_
-    SuDlgt p_ -> f $ toJson J.fromString t p_
+    SuBal p_ -> f $ toJson balToJson t p_
+    SuDlgt p_ -> f $ toJson dlgtToJson t p_
   where
     toJson :: forall b. (b -> J.Json) -> String -> b -> J.Json
     toJson processP t p = J.fromObject $ SMap.insert "p" (processP p) $ SMap.singleton "t" $ J.fromString t
+
     procRes :: OutAllDeets -> J.Json
     procRes {nVotes, ballotResults} =
             J.fromObject
             $ SMap.insert "nVotes" (J.fromNumber $ toNumber nVotes)
             $ SMap.singleton "totals" $ J.fromObject $ convertCountToStr <$> ballotResults
     convertCountToStr {count, nVotes} = J.fromObject $ SMap.fromFoldable [Tuple "count" $ J.fromString count, Tuple "nVotes" $ J.fromNumber $ toNumber nVotes]
+
+    balToJson :: Map Address BigNumber -> J.Json
+    balToJson = (toUnfoldable :: _ -> Array _)
+                >>> map (\(Tuple addr bal) -> Tuple (show addr) (J.fromString $ bnToStr bal))
+                >>> SMap.fromFoldable >>> J.fromObject
+
+    dlgtToJson :: Map Address Address -> J.Json
+    dlgtToJson = (toUnfoldable :: _ -> Array _)
+                 >>> map (\(Tuple v d) -> Tuple (show v) (J.fromString $ show d))
+                 >>> SMap.fromFoldable >>> J.fromObject

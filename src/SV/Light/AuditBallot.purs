@@ -57,7 +57,7 @@ import SV.Light.Delegation (getDelegates)
 import SV.Light.IPFS (getBlock)
 import SV.Light.Types.BallotBox (determineBallotVersion)
 import SV.Light.Types.Eth (UInt256, uint256Px)
-import SV.Types.OutboundLogs (mkSUFail, mkSULog, mkSUWarn)
+import SV.Types.OutboundLogs (mkSUBal, mkSUDlgts, mkSUFail, mkSULog, mkSUWarn)
 import SV.Utils.BigNumber (bnToDec)
 import SecureVote.Contracts.FakeErc20 (balanceOf, decimals)
 import SecureVote.Contracts.SVLightBallotBox (ballotEncryptionSeckey, ballotMap, creationBlock, curve25519Pubkeys, endTime, getEncSeckey, nVotesCast, specHash, startTime, startingBlockAround)
@@ -119,7 +119,7 @@ getBallotSpec h = do
 runBallotCount :: RunBallotArgs -> (_ -> Unit) -> ExceptT String (Aff _) BallotResult
 runBallotCount {bInfo, bSpec, bbTos, ercTos, dlgtTos, silent, dev} updateF = do
     nowTime <- lift $ liftEff $ round <$> currentTimestamp
-    -- todo: use ballotInfo start and end times
+    -- todo: use ballotInfo start and end times (from SC)
     let endTime = bSpec ^. _endTime
         startTime = bInfo.startTime
         tknAddr = unsafePartial fromJust $ ercTos ^. _to
@@ -129,8 +129,8 @@ runBallotCount {bInfo, bSpec, bbTos, ercTos, dlgtTos, silent, dev} updateF = do
 
     blocksFibre <- lift $ forkAff $ do
         logAff $ "Finding Eth block close to time: " <> show startTime <> " (takes 10-20 seconds)"
-        blocks <- sequential $ Tuple <$> parallel (findEthBlockEndingInZeroBefore startTime)
-                                         <*> parallel (findEthBlockEndingInZeroBefore $ min nowTime endTime)
+        blocks <- sequential $ Tuple <$> parallel (findEthBlockBefore startTime)
+                                         <*> parallel (findEthBlockBefore $ min nowTime endTime)
         logAff $ "Using start/end blocks " <> show blocks <> " for ERC20 balances and delegation."
         pure blocks
 
@@ -172,6 +172,7 @@ runBallotCount {bInfo, bSpec, bbTos, ercTos, dlgtTos, silent, dev} updateF = do
     log $ "Finding all delegates..."
     delegateMap <- lift $ getDelegates {tknAddr, allBallots: plaintextBallots} dlgtSC (BN $ wrap $ embed ballotEndBlock)
     log $ "Found " <> show (Map.size delegateMap) <> " relevant delegations"
+    lift $ logDelegates delegateMap
 
     log $ "Getting balances for all addresses..."
     let allVoters = (\{voterAddr} -> voterAddr) <$> plaintextBallots
@@ -179,8 +180,7 @@ runBallotCount {bInfo, bSpec, bbTos, ercTos, dlgtTos, silent, dev} updateF = do
     let allRelevantTknHolders = fromList $ Map.keys delegateMap
     balanceMap <- lift $ removeBannedAddrs <$> getBalances ercSC ballotStartBlock (allVoters <> allRelevantTknHolders)
     log $ "Got " <> show (Map.size balanceMap) <> " total balances"
-    logDev $ "Balances: \n" <> show balanceMap
-
+    lift $ logBalances balanceMap
 
     log $ "Calculating weighted ballots according to ERC20 balances..."
     -- | loop through addrs in balance map to find the first associated vote and associate balances
@@ -219,6 +219,12 @@ runBallotCount {bInfo, bSpec, bbTos, ercTos, dlgtTos, silent, dev} updateF = do
 
     log :: forall e. String -> ExceptT String (Aff _) Unit
     log str = lift $ logAff str
+
+    logBalances :: BalanceMap -> Aff _ Unit
+    logBalances = pure <<< updateF <<< mkSUBal
+
+    logDelegates :: DelegateMap -> Aff _ Unit
+    logDelegates = pure <<< updateF <<< mkSUDlgts
 
     logDev str = if dev then log str else pure unit
 
@@ -328,8 +334,8 @@ removeBannedAddrs :: Map Address _ -> Map Address _
 removeBannedAddrs = Map.filterKeys (\k -> not $ Set.member k bannedAddrs)
 
 
-findEthBlockEndingInZeroBefore :: Int -> Aff _ Int
-findEthBlockEndingInZeroBefore targetTime = do
+findEthBlockBefore :: Int -> Aff _ Int
+findEthBlockBefore targetTime = do
     let initLowBlock = 0
     currBlock <- runWeb3_ eth_blockNumber >>= eToAff <#> (unwrap >>> unsafeToInt)
     Tuple currBlockTs lowTs <- sequential $ Tuple
