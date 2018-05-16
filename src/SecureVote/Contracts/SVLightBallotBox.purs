@@ -17,7 +17,7 @@ import Data.Newtype (class Newtype)
 import Data.Symbol (SProxy)
 import Network.Ethereum.Web3 (Vector, _address, _topics, call, class EventFilter, deployContract, sendTx)
 import Network.Ethereum.Web3.Contract.Internal (uncurryFields)
-import Network.Ethereum.Web3.Solidity (BytesN, D1, D2, D3, D4, D5, D6, D8, DOne, Tuple0(..), Tuple1(..), Tuple2(..), Tuple3(..), Tuple4(..), UIntN, class IndexedEvent, unTuple1)
+import Network.Ethereum.Web3.Solidity (BytesN, D1, D2, D3, D4, D5, D6, DOne, Tuple0(..), Tuple1(..), Tuple2(..), Tuple3(..), Tuple4(..), Tuple6, UIntN, class IndexedEvent, unTuple1)
 import Network.Ethereum.Web3.Solidity.Size (type (:&))
 import Network.Ethereum.Web3.Types (Address, CallError, ChainCursor, HexString, NoPay, TransactionOptions, Web3, defaultFilter, mkHexString)
 import Partial.Unsafe (unsafePartial)
@@ -32,14 +32,27 @@ nVotesCast :: forall e. TransactionOptions NoPay -> ChainCursor -> Web3 e (Eithe
 nVotesCast x0 cm = map unTuple1 <$> call x0 cm ((tagged $ Tuple0 ) :: NVotesCastFn)
 
 --------------------------------------------------------------------------------
--- | DeprecatedFn
+-- | GetSignatureFn
 --------------------------------------------------------------------------------
 
 
-type DeprecatedFn = Tagged (SProxy "deprecated()") (Tuple0 )
+type GetSignatureFn = Tagged (SProxy "getSignature(uint256)") (Tuple1 (UIntN (D2 :& D5 :& DOne D6)))
 
-deprecated :: forall e. TransactionOptions NoPay -> ChainCursor -> Web3 e (Either CallError Boolean)
-deprecated x0 cm = map unTuple1 <$> call x0 cm ((tagged $ Tuple0 ) :: DeprecatedFn)
+getSignature :: forall e. TransactionOptions NoPay -> ChainCursor -> { id :: (UIntN (D2 :& D5 :& DOne D6)) } -> Web3 e (Either CallError (Vector (DOne D2) (BytesN (D3 :& DOne D2))))
+getSignature x0 cm r = uncurryFields  r $ getSignature' x0 cm
+   where
+    getSignature' :: TransactionOptions NoPay -> ChainCursor -> Tagged (SProxy "id") (UIntN (D2 :& D5 :& DOne D6)) -> Web3 e (Either CallError (Vector (DOne D2) (BytesN (D3 :& DOne D2))))
+    getSignature' y0 cm' y2 = map unTuple1 <$> call y0 cm' ((tagged $ Tuple1 (untagged y2 )) :: GetSignatureFn)
+
+--------------------------------------------------------------------------------
+-- | GetVersionFn
+--------------------------------------------------------------------------------
+
+
+type GetVersionFn = Tagged (SProxy "getVersion()") (Tuple0 )
+
+getVersion :: forall e. TransactionOptions NoPay -> ChainCursor -> Web3 e (Either CallError (UIntN (D2 :& D5 :& DOne D6)))
+getVersion x0 cm = map unTuple1 <$> call x0 cm ((tagged $ Tuple0 ) :: GetVersionFn)
 
 --------------------------------------------------------------------------------
 -- | SetOwnerFn
@@ -68,14 +81,27 @@ submitBallotSignedWithEnc x0 r = uncurryFields  r $ submitBallotSignedWithEnc' x
     submitBallotSignedWithEnc' y0 y1 y2 y3 y4 = sendTx y0 ((tagged $ Tuple4 (untagged y1 ) (untagged y2 ) (untagged y3 ) (untagged y4 )) :: SubmitBallotSignedWithEncFn)
 
 --------------------------------------------------------------------------------
--- | CreationBlockFn
+-- | GetBallotsSignedFromFn
 --------------------------------------------------------------------------------
 
 
-type CreationBlockFn = Tagged (SProxy "creationBlock()") (Tuple0 )
+type GetBallotsSignedFromFn = Tagged (SProxy "getBallotsSignedFrom(bytes32)") (Tuple1 (BytesN (D3 :& DOne D2)))
 
-creationBlock :: forall e. TransactionOptions NoPay -> ChainCursor -> Web3 e (Either CallError (UIntN (D6 :& DOne D4)))
-creationBlock x0 cm = map unTuple1 <$> call x0 cm ((tagged $ Tuple0 ) :: CreationBlockFn)
+getBallotsSignedFrom :: forall e. TransactionOptions NoPay -> ChainCursor -> { voter :: (BytesN (D3 :& DOne D2)) } -> Web3 e (Either CallError (Tuple6 (Array (UIntN (D2 :& D5 :& DOne D6))) (Array (BytesN (D3 :& DOne D2))) (Array (UIntN (D3 :& DOne D2))) (Array (BytesN (D3 :& DOne D2))) (Array (Vector (DOne D2) (BytesN (D3 :& DOne D2)))) Boolean))
+getBallotsSignedFrom x0 cm r = uncurryFields  r $ getBallotsSignedFrom' x0 cm
+   where
+    getBallotsSignedFrom' :: TransactionOptions NoPay -> ChainCursor -> Tagged (SProxy "voter") (BytesN (D3 :& DOne D2)) -> Web3 e (Either CallError (Tuple6 (Array (UIntN (D2 :& D5 :& DOne D6))) (Array (BytesN (D3 :& DOne D2))) (Array (UIntN (D3 :& DOne D2))) (Array (BytesN (D3 :& DOne D2))) (Array (Vector (DOne D2) (BytesN (D3 :& DOne D2)))) Boolean))
+    getBallotsSignedFrom' y0 cm' y2 = call y0 cm' ((tagged $ Tuple1 (untagged y2 )) :: GetBallotsSignedFromFn)
+
+--------------------------------------------------------------------------------
+-- | GetCreationBlockFn
+--------------------------------------------------------------------------------
+
+
+type GetCreationBlockFn = Tagged (SProxy "getCreationBlock()") (Tuple0 )
+
+getCreationBlock :: forall e. TransactionOptions NoPay -> ChainCursor -> Web3 e (Either CallError (UIntN (D6 :& DOne D4)))
+getCreationBlock x0 cm = map unTuple1 <$> call x0 cm ((tagged $ Tuple0 ) :: GetCreationBlockFn)
 
 --------------------------------------------------------------------------------
 -- | BallotEncryptionSeckeyFn
@@ -88,26 +114,6 @@ ballotEncryptionSeckey :: forall e. TransactionOptions NoPay -> ChainCursor -> W
 ballotEncryptionSeckey x0 cm = map unTuple1 <$> call x0 cm ((tagged $ Tuple0 ) :: BallotEncryptionSeckeyFn)
 
 --------------------------------------------------------------------------------
--- | EndTimeFn
---------------------------------------------------------------------------------
-
-
-type EndTimeFn = Tagged (SProxy "endTime()") (Tuple0 )
-
-endTime :: forall e. TransactionOptions NoPay -> ChainCursor -> Web3 e (Either CallError (UIntN (D6 :& DOne D4)))
-endTime x0 cm = map unTuple1 <$> call x0 cm ((tagged $ Tuple0 ) :: EndTimeFn)
-
---------------------------------------------------------------------------------
--- | StartingBlockAroundFn
---------------------------------------------------------------------------------
-
-
-type StartingBlockAroundFn = Tagged (SProxy "startingBlockAround()") (Tuple0 )
-
-startingBlockAround :: forall e. TransactionOptions NoPay -> ChainCursor -> Web3 e (Either CallError (UIntN (D6 :& DOne D4)))
-startingBlockAround x0 cm = map unTuple1 <$> call x0 cm ((tagged $ Tuple0 ) :: StartingBlockAroundFn)
-
---------------------------------------------------------------------------------
 -- | GetEncSeckeyFn
 --------------------------------------------------------------------------------
 
@@ -118,14 +124,14 @@ getEncSeckey :: forall e. TransactionOptions NoPay -> ChainCursor -> Web3 e (Eit
 getEncSeckey x0 cm = map unTuple1 <$> call x0 cm ((tagged $ Tuple0 ) :: GetEncSeckeyFn)
 
 --------------------------------------------------------------------------------
--- | StartTimeFn
+-- | GetEndTimeFn
 --------------------------------------------------------------------------------
 
 
-type StartTimeFn = Tagged (SProxy "startTime()") (Tuple0 )
+type GetEndTimeFn = Tagged (SProxy "getEndTime()") (Tuple0 )
 
-startTime :: forall e. TransactionOptions NoPay -> ChainCursor -> Web3 e (Either CallError (UIntN (D6 :& DOne D4)))
-startTime x0 cm = map unTuple1 <$> call x0 cm ((tagged $ Tuple0 ) :: StartTimeFn)
+getEndTime :: forall e. TransactionOptions NoPay -> ChainCursor -> Web3 e (Either CallError (UIntN (D6 :& DOne D4)))
+getEndTime x0 cm = map unTuple1 <$> call x0 cm ((tagged $ Tuple0 ) :: GetEndTimeFn)
 
 --------------------------------------------------------------------------------
 -- | SubmitBallotSignedNoEncFn
@@ -141,14 +147,27 @@ submitBallotSignedNoEnc x0 r = uncurryFields  r $ submitBallotSignedNoEnc' x0
     submitBallotSignedNoEnc' y0 y1 y2 y3 = sendTx y0 ((tagged $ Tuple3 (untagged y1 ) (untagged y2 ) (untagged y3 )) :: SubmitBallotSignedNoEncFn)
 
 --------------------------------------------------------------------------------
--- | SpecHashFn
+-- | HasVotedEthFn
 --------------------------------------------------------------------------------
 
 
-type SpecHashFn = Tagged (SProxy "specHash()") (Tuple0 )
+type HasVotedEthFn = Tagged (SProxy "hasVotedEth(address)") (Tuple1 Address)
 
-specHash :: forall e. TransactionOptions NoPay -> ChainCursor -> Web3 e (Either CallError (BytesN (D3 :& DOne D2)))
-specHash x0 cm = map unTuple1 <$> call x0 cm ((tagged $ Tuple0 ) :: SpecHashFn)
+hasVotedEth :: forall e. TransactionOptions NoPay -> ChainCursor -> { v :: Address } -> Web3 e (Either CallError Boolean)
+hasVotedEth x0 cm r = uncurryFields  r $ hasVotedEth' x0 cm
+   where
+    hasVotedEth' :: TransactionOptions NoPay -> ChainCursor -> Tagged (SProxy "v") Address -> Web3 e (Either CallError Boolean)
+    hasVotedEth' y0 cm' y2 = map unTuple1 <$> call y0 cm' ((tagged $ Tuple1 (untagged y2 )) :: HasVotedEthFn)
+
+--------------------------------------------------------------------------------
+-- | GetSubmissionBitsFn
+--------------------------------------------------------------------------------
+
+
+type GetSubmissionBitsFn = Tagged (SProxy "getSubmissionBits()") (Tuple0 )
+
+getSubmissionBits :: forall e. TransactionOptions NoPay -> ChainCursor -> Web3 e (Either CallError (UIntN (D1 :& DOne D6)))
+getSubmissionBits x0 cm = map unTuple1 <$> call x0 cm ((tagged $ Tuple0 ) :: GetSubmissionBitsFn)
 
 --------------------------------------------------------------------------------
 -- | OwnerFn
@@ -181,6 +200,42 @@ setDeprecated :: forall e. TransactionOptions NoPay -> Web3 e HexString
 setDeprecated x0 = sendTx x0 ((tagged $ Tuple0 ) :: SetDeprecatedFn)
 
 --------------------------------------------------------------------------------
+-- | IsBindingFn
+--------------------------------------------------------------------------------
+
+
+type IsBindingFn = Tagged (SProxy "isBinding()") (Tuple0 )
+
+isBinding :: forall e. TransactionOptions NoPay -> ChainCursor -> Web3 e (Either CallError Boolean)
+isBinding x0 cm = map unTuple1 <$> call x0 cm ((tagged $ Tuple0 ) :: IsBindingFn)
+
+--------------------------------------------------------------------------------
+-- | GetBallotsEthFromFn
+--------------------------------------------------------------------------------
+
+
+type GetBallotsEthFromFn = Tagged (SProxy "getBallotsEthFrom(address)") (Tuple1 Address)
+
+getBallotsEthFrom :: forall e. TransactionOptions NoPay -> ChainCursor -> { voter :: Address } -> Web3 e (Either CallError (Tuple6 (Array (UIntN (D2 :& D5 :& DOne D6))) (Array (BytesN (D3 :& DOne D2))) (Array (UIntN (D3 :& DOne D2))) (Array (BytesN (D3 :& DOne D2))) (Array (Vector (DOne D2) (BytesN (D3 :& DOne D2)))) Boolean))
+getBallotsEthFrom x0 cm r = uncurryFields  r $ getBallotsEthFrom' x0 cm
+   where
+    getBallotsEthFrom' :: TransactionOptions NoPay -> ChainCursor -> Tagged (SProxy "voter") Address -> Web3 e (Either CallError (Tuple6 (Array (UIntN (D2 :& D5 :& DOne D6))) (Array (BytesN (D3 :& DOne D2))) (Array (UIntN (D3 :& DOne D2))) (Array (BytesN (D3 :& DOne D2))) (Array (Vector (DOne D2) (BytesN (D3 :& DOne D2)))) Boolean))
+    getBallotsEthFrom' y0 cm' y2 = call y0 cm' ((tagged $ Tuple1 (untagged y2 )) :: GetBallotsEthFromFn)
+
+--------------------------------------------------------------------------------
+-- | GetBallotSignedFn
+--------------------------------------------------------------------------------
+
+
+type GetBallotSignedFn = Tagged (SProxy "getBallotSigned(uint256)") (Tuple1 (UIntN (D2 :& D5 :& DOne D6)))
+
+getBallotSigned :: forall e. TransactionOptions NoPay -> ChainCursor -> { id :: (UIntN (D2 :& D5 :& DOne D6)) } -> Web3 e (Either CallError (Tuple3 (BytesN (D3 :& DOne D2)) (BytesN (D3 :& DOne D2)) (UIntN (D3 :& DOne D2))))
+getBallotSigned x0 cm r = uncurryFields  r $ getBallotSigned' x0 cm
+   where
+    getBallotSigned' :: TransactionOptions NoPay -> ChainCursor -> Tagged (SProxy "id") (UIntN (D2 :& D5 :& DOne D6)) -> Web3 e (Either CallError (Tuple3 (BytesN (D3 :& DOne D2)) (BytesN (D3 :& DOne D2)) (UIntN (D3 :& DOne D2))))
+    getBallotSigned' y0 cm' y2 = call y0 cm' ((tagged $ Tuple1 (untagged y2 )) :: GetBallotSignedFn)
+
+--------------------------------------------------------------------------------
 -- | Ed25519SignaturesFn
 --------------------------------------------------------------------------------
 
@@ -191,14 +246,37 @@ ed25519Signatures :: forall e. TransactionOptions NoPay -> ChainCursor -> (UIntN
 ed25519Signatures x0 cm x2 x3 = map unTuple1 <$> call x0 cm ((tagged $ Tuple2 x2 x3) :: Ed25519SignaturesFn)
 
 --------------------------------------------------------------------------------
--- | BallotMapFn
+-- | BallotsSignedFn
 --------------------------------------------------------------------------------
 
 
-type BallotMapFn = Tagged (SProxy "ballotMap(uint256)") (Tuple1 (UIntN (D2 :& D5 :& DOne D6)))
+type BallotsSignedFn = Tagged (SProxy "ballotsSigned(uint256)") (Tuple1 (UIntN (D2 :& D5 :& DOne D6)))
 
-ballotMap :: forall e. TransactionOptions NoPay -> ChainCursor -> (UIntN (D2 :& D5 :& DOne D6)) -> Web3 e (Either CallError (Tuple3 (BytesN (D3 :& DOne D2)) (BytesN (D3 :& DOne D2)) (UIntN (D3 :& DOne D2))))
-ballotMap x0 cm x2 = call x0 cm ((tagged $ Tuple1 x2) :: BallotMapFn)
+ballotsSigned :: forall e. TransactionOptions NoPay -> ChainCursor -> (UIntN (D2 :& D5 :& DOne D6)) -> Web3 e (Either CallError (Tuple3 (BytesN (D3 :& DOne D2)) (BytesN (D3 :& DOne D2)) (UIntN (D3 :& DOne D2))))
+ballotsSigned x0 cm x2 = call x0 cm ((tagged $ Tuple1 x2) :: BallotsSignedFn)
+
+--------------------------------------------------------------------------------
+-- | GetBallotEthFn
+--------------------------------------------------------------------------------
+
+
+type GetBallotEthFn = Tagged (SProxy "getBallotEth(uint256)") (Tuple1 (UIntN (D2 :& D5 :& DOne D6)))
+
+getBallotEth :: forall e. TransactionOptions NoPay -> ChainCursor -> { id :: (UIntN (D2 :& D5 :& DOne D6)) } -> Web3 e (Either CallError (Tuple3 (BytesN (D3 :& DOne D2)) Address (UIntN (D3 :& DOne D2))))
+getBallotEth x0 cm r = uncurryFields  r $ getBallotEth' x0 cm
+   where
+    getBallotEth' :: TransactionOptions NoPay -> ChainCursor -> Tagged (SProxy "id") (UIntN (D2 :& D5 :& DOne D6)) -> Web3 e (Either CallError (Tuple3 (BytesN (D3 :& DOne D2)) Address (UIntN (D3 :& DOne D2))))
+    getBallotEth' y0 cm' y2 = call y0 cm' ((tagged $ Tuple1 (untagged y2 )) :: GetBallotEthFn)
+
+--------------------------------------------------------------------------------
+-- | BallotsEthFn
+--------------------------------------------------------------------------------
+
+
+type BallotsEthFn = Tagged (SProxy "ballotsEth(uint256)") (Tuple1 (UIntN (D2 :& D5 :& DOne D6)))
+
+ballotsEth :: forall e. TransactionOptions NoPay -> ChainCursor -> (UIntN (D2 :& D5 :& DOne D6)) -> Web3 e (Either CallError (Tuple3 (BytesN (D3 :& DOne D2)) Address (UIntN (D3 :& DOne D2))))
+ballotsEth x0 cm x2 = call x0 cm ((tagged $ Tuple1 x2) :: BallotsEthFn)
 
 --------------------------------------------------------------------------------
 -- | SubmitBallotWithPkFn
@@ -212,6 +290,26 @@ submitBallotWithPk x0 r = uncurryFields  r $ submitBallotWithPk' x0
    where
     submitBallotWithPk' :: TransactionOptions NoPay -> Tagged (SProxy "ballot") (BytesN (D3 :& DOne D2)) -> Tagged (SProxy "encPK") (BytesN (D3 :& DOne D2)) -> Web3 e HexString
     submitBallotWithPk' y0 y1 y2 = sendTx y0 ((tagged $ Tuple2 (untagged y1 ) (untagged y2 )) :: SubmitBallotWithPkFn)
+
+--------------------------------------------------------------------------------
+-- | IsDeprecatedFn
+--------------------------------------------------------------------------------
+
+
+type IsDeprecatedFn = Tagged (SProxy "isDeprecated()") (Tuple0 )
+
+isDeprecated :: forall e. TransactionOptions NoPay -> ChainCursor -> Web3 e (Either CallError Boolean)
+isDeprecated x0 cm = map unTuple1 <$> call x0 cm ((tagged $ Tuple0 ) :: IsDeprecatedFn)
+
+--------------------------------------------------------------------------------
+-- | GetStartTimeFn
+--------------------------------------------------------------------------------
+
+
+type GetStartTimeFn = Tagged (SProxy "getStartTime()") (Tuple0 )
+
+getStartTime :: forall e. TransactionOptions NoPay -> ChainCursor -> Web3 e (Either CallError (UIntN (D6 :& DOne D4)))
+getStartTime x0 cm = map unTuple1 <$> call x0 cm ((tagged $ Tuple0 ) :: GetStartTimeFn)
 
 --------------------------------------------------------------------------------
 -- | RevealSeckeyFn
@@ -250,6 +348,16 @@ submitBallotNoPk x0 r = uncurryFields  r $ submitBallotNoPk' x0
     submitBallotNoPk' y0 y1 = sendTx y0 ((tagged $ Tuple1 (untagged y1 )) :: SubmitBallotNoPkFn)
 
 --------------------------------------------------------------------------------
+-- | GetSpecHashFn
+--------------------------------------------------------------------------------
+
+
+type GetSpecHashFn = Tagged (SProxy "getSpecHash()") (Tuple0 )
+
+getSpecHash :: forall e. TransactionOptions NoPay -> ChainCursor -> Web3 e (Either CallError (BytesN (D3 :& DOne D2)))
+getSpecHash x0 cm = map unTuple1 <$> call x0 cm ((tagged $ Tuple0 ) :: GetSpecHashFn)
+
+--------------------------------------------------------------------------------
 -- | Curve25519PubkeysFn
 --------------------------------------------------------------------------------
 
@@ -273,27 +381,30 @@ setEndTime x0 r = uncurryFields  r $ setEndTime' x0
     setEndTime' y0 y1 = sendTx y0 ((tagged $ Tuple1 (untagged y1 )) :: SetEndTimeFn)
 
 --------------------------------------------------------------------------------
--- | SubmissionBitsFn
+-- | GetPubkeyFn
 --------------------------------------------------------------------------------
 
 
-type SubmissionBitsFn = Tagged (SProxy "submissionBits()") (Tuple0 )
+type GetPubkeyFn = Tagged (SProxy "getPubkey(uint256)") (Tuple1 (UIntN (D2 :& D5 :& DOne D6)))
 
-submissionBits :: forall e. TransactionOptions NoPay -> ChainCursor -> Web3 e (Either CallError (UIntN (D1 :& DOne D6)))
-submissionBits x0 cm = map unTuple1 <$> call x0 cm ((tagged $ Tuple0 ) :: SubmissionBitsFn)
+getPubkey :: forall e. TransactionOptions NoPay -> ChainCursor -> { id :: (UIntN (D2 :& D5 :& DOne D6)) } -> Web3 e (Either CallError (BytesN (D3 :& DOne D2)))
+getPubkey x0 cm r = uncurryFields  r $ getPubkey' x0 cm
+   where
+    getPubkey' :: TransactionOptions NoPay -> ChainCursor -> Tagged (SProxy "id") (UIntN (D2 :& D5 :& DOne D6)) -> Web3 e (Either CallError (BytesN (D3 :& DOne D2)))
+    getPubkey' y0 cm' y2 = map unTuple1 <$> call y0 cm' ((tagged $ Tuple1 (untagged y2 )) :: GetPubkeyFn)
 
 --------------------------------------------------------------------------------
 -- | ConstructorFn
 --------------------------------------------------------------------------------
 
 
-type ConstructorFn = Tagged (SProxy "constructor(bytes32,uint128,uint16,address)") (Tuple4 (BytesN (D3 :& DOne D2)) (UIntN (D1 :& D2 :& DOne D8)) (UIntN (D1 :& DOne D6)) Address)
+type ConstructorFn = Tagged (SProxy "constructor(bytes32,uint256,address)") (Tuple3 (BytesN (D3 :& DOne D2)) (UIntN (D2 :& D5 :& DOne D6)) Address)
 
-constructor :: forall e. TransactionOptions NoPay -> HexString -> { _specHash :: (BytesN (D3 :& DOne D2)), packedTimes :: (UIntN (D1 :& D2 :& DOne D8)), _submissionBits :: (UIntN (D1 :& DOne D6)), ix :: Address } -> Web3 e HexString
+constructor :: forall e. TransactionOptions NoPay -> HexString -> { _specHash :: (BytesN (D3 :& DOne D2)), packed :: (UIntN (D2 :& D5 :& DOne D6)), ix :: Address } -> Web3 e HexString
 constructor x0 bc r = uncurryFields  r $ constructor' x0 bc
    where
-    constructor' :: TransactionOptions NoPay -> HexString -> Tagged (SProxy "_specHash") (BytesN (D3 :& DOne D2)) -> Tagged (SProxy "packedTimes") (UIntN (D1 :& D2 :& DOne D8)) -> Tagged (SProxy "_submissionBits") (UIntN (D1 :& DOne D6)) -> Tagged (SProxy "ix") Address -> Web3 e HexString
-    constructor' y0 bc' y2 y3 y4 y5 = deployContract y0 bc' ((tagged $ Tuple4 (untagged y2 ) (untagged y3 ) (untagged y4 ) (untagged y5 )) :: ConstructorFn)
+    constructor' :: TransactionOptions NoPay -> HexString -> Tagged (SProxy "_specHash") (BytesN (D3 :& DOne D2)) -> Tagged (SProxy "packed") (UIntN (D2 :& D5 :& DOne D6)) -> Tagged (SProxy "ix") Address -> Web3 e HexString
+    constructor' y0 bc' y2 y3 y4 = deployContract y0 bc' ((tagged $ Tuple3 (untagged y2 ) (untagged y3 ) (untagged y4 )) :: ConstructorFn)
 
 
 

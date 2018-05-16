@@ -12,10 +12,16 @@ module SecureVote.Web3.Web3
 
 import SV.Prelude
 
+import Control.Monad.Aff (Milliseconds(..), delay)
+import Control.Monad.Aff.Console (CONSOLE)
+import Control.Monad.Aff.Console as AffC
 import Control.Monad.Eff.Class (liftEff)
 import Control.Monad.Eff.Ref (REF, Ref, newRef, readRef, writeRef)
 import Control.Monad.Eff.Unsafe (unsafePerformEff)
-import Network.Ethereum.Web3 (Address, ETH, Provider, Web3Error, httpProvider, mkAddress, mkHexString, runWeb3)
+import Control.Parallel (parallel, sequential)
+import Data.Either (isLeft)
+import Data.Foldable (oneOf)
+import Network.Ethereum.Web3 (Address, ETH, Provider, Web3Error(..), httpProvider, mkAddress, mkHexString, runWeb3)
 import Network.Ethereum.Web3.Types (Web3, HexString)
 import Partial.Unsafe (unsafePartial)
 
@@ -82,7 +88,22 @@ runWeb3Classic = runWeb3 svClassicProvider
 runWeb3Ropsten :: forall e a. Web3 e a -> Aff (eth :: ETH | e) (Either Web3Error a)
 runWeb3Ropsten = runWeb3 svClassicProvider
 
-runWeb3_ :: forall e eff a. Web3 (ref :: REF | e) a -> Aff (eth :: ETH, ref :: REF | e) (Either Web3Error a)
+runWeb3_ :: forall e eff a. Web3 (ref :: REF, console :: CONSOLE | e) a -> Aff (eth :: ETH, ref :: REF, console :: CONSOLE | e) (Either Web3Error a)
 runWeb3_ w3r = do
     net <- liftEff $ readRef _svNetVar
-    runWeb3 (_getNet net) w3r
+    go net 0
+  where
+    go net n = do
+        res <- sequential $ oneOf
+            [ parallel $ runWeb3 (_getNet net) w3r
+            , parallel $ delay (Milliseconds $ timeoutSec * 1000.0)
+                *> pure (Left $ RemoteError $ "Timeout reached (" <> show timeoutSec <> "s)")
+            ]
+        if isLeft res && n < tryTimes
+            then do
+                AffC.warn $ "Warning: Web3 request failed. Previous tries: "
+                            <> show n <> ". Retrying..."
+                go net (n+1)
+            else pure res
+    tryTimes = 3
+    timeoutSec = 15.0

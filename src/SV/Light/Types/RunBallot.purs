@@ -46,3 +46,8 @@ type SmartContract e args a = (TransactionOptions NoPay -> ChainCursor -> args -
 type BalanceMap = Map Address BigNumber
 type BallotMap = Map Address BallotFromSC
 type DelegateMap = Map Address Address
+
+
+data BallotBoxVersion = BBv0
+                      | BBv1
+                      | BBvN Int

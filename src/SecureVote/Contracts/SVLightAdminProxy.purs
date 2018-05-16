@@ -17,7 +17,7 @@ import Data.Newtype (class Newtype)
 import Data.Symbol (SProxy)
 import Network.Ethereum.Web3 (_address, _topics, call, class EventFilter, deployContract, sendTx)
 import Network.Ethereum.Web3.Contract.Internal (uncurryFields)
-import Network.Ethereum.Web3.Solidity (ByteString, BytesN, D1, D2, D3, D5, D6, D8, DOne, Tuple0(..), Tuple1(..), Tuple2(..), Tuple3(..), Tuple4(..), UIntN, class IndexedEvent, unTuple1)
+import Network.Ethereum.Web3.Solidity (ByteString, BytesN, D2, D3, D5, D6, DOne, Tuple0(..), Tuple1(..), Tuple2(..), Tuple3(..), UIntN, class IndexedEvent, unTuple1)
 import Network.Ethereum.Web3.Solidity.Size (type (:&))
 import Network.Ethereum.Web3.Types (Address, CallError, ChainCursor, HexString, NoPay, TransactionOptions, Web3, Wei, defaultFilter, mkHexString)
 import Partial.Unsafe (unsafePartial)
@@ -181,13 +181,13 @@ isProxyContract x0 cm = map unTuple1 <$> call x0 cm ((tagged $ Tuple0 ) :: IsPro
 --------------------------------------------------------------------------------
 
 
-type DeployCommunityBallotFn = Tagged (SProxy "deployCommunityBallot(bytes32,bytes32,uint128,uint16)") (Tuple4 (BytesN (D3 :& DOne D2)) (BytesN (D3 :& DOne D2)) (UIntN (D1 :& D2 :& DOne D8)) (UIntN (D1 :& DOne D6)))
+type DeployCommunityBallotFn = Tagged (SProxy "deployCommunityBallot(bytes32,bytes32,uint256)") (Tuple3 (BytesN (D3 :& DOne D2)) (BytesN (D3 :& DOne D2)) (UIntN (D2 :& D5 :& DOne D6)))
 
-deployCommunityBallot :: forall e. TransactionOptions Wei -> { specHash :: (BytesN (D3 :& DOne D2)), extraData :: (BytesN (D3 :& DOne D2)), packedTimes :: (UIntN (D1 :& D2 :& DOne D8)), _submissionBits :: (UIntN (D1 :& DOne D6)) } -> Web3 e HexString
+deployCommunityBallot :: forall e. TransactionOptions Wei -> { specHash :: (BytesN (D3 :& DOne D2)), extraData :: (BytesN (D3 :& DOne D2)), _packed :: (UIntN (D2 :& D5 :& DOne D6)) } -> Web3 e HexString
 deployCommunityBallot x0 r = uncurryFields  r $ deployCommunityBallot' x0
    where
-    deployCommunityBallot' :: TransactionOptions Wei -> Tagged (SProxy "specHash") (BytesN (D3 :& DOne D2)) -> Tagged (SProxy "extraData") (BytesN (D3 :& DOne D2)) -> Tagged (SProxy "packedTimes") (UIntN (D1 :& D2 :& DOne D8)) -> Tagged (SProxy "_submissionBits") (UIntN (D1 :& DOne D6)) -> Web3 e HexString
-    deployCommunityBallot' y0 y1 y2 y3 y4 = sendTx y0 ((tagged $ Tuple4 (untagged y1 ) (untagged y2 ) (untagged y3 ) (untagged y4 )) :: DeployCommunityBallotFn)
+    deployCommunityBallot' :: TransactionOptions Wei -> Tagged (SProxy "specHash") (BytesN (D3 :& DOne D2)) -> Tagged (SProxy "extraData") (BytesN (D3 :& DOne D2)) -> Tagged (SProxy "_packed") (UIntN (D2 :& D5 :& DOne D6)) -> Web3 e HexString
+    deployCommunityBallot' y0 y1 y2 y3 = sendTx y0 ((tagged $ Tuple3 (untagged y1 ) (untagged y2 ) (untagged y3 )) :: DeployCommunityBallotFn)
 
 --------------------------------------------------------------------------------
 -- | SetCommunityBallotStatusFn

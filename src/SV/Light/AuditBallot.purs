@@ -71,6 +71,9 @@ import Simple.JSON (readJSON')
 
 getBallotInfo :: forall e. {bScAddr :: Address} -> Aff (eth :: ETH, ref :: REF | e) BallotInfo
 getBallotInfo {bScAddr} = do
+    -- todo: test version stuff for ballot
+    ballotVersion <- determineBallotBoxVersion bScAddr
+
     sequential $
         mkBallotInfo <$> (map bytesNToHex $ pw3 $ specHash tos Latest)
                      <*> (map uintToInt $ pw3 $ startTime tos Latest)
@@ -120,7 +123,7 @@ runBallotCount :: RunBallotArgs -> (_ -> Unit) -> ExceptT String (Aff _) BallotR
 runBallotCount {bInfo, bSpec, bbTos, ercTos, dlgtTos, silent, dev} updateF = do
     nowTime <- lift $ liftEff $ round <$> currentTimestamp
     -- todo: use ballotInfo start and end times (from SC)
-    let endTime = bSpec ^. _endTime
+    let endTime = bInfo.endTime
         startTime = bInfo.startTime
         tknAddr = unsafePartial fromJust $ ercTos ^. _to
     log $ "Ballot StartTime: " <> show startTime <> ", Ballot EndTime: " <> show endTime <> ", Current Time: " <> show nowTime
