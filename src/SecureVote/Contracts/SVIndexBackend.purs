@@ -61,6 +61,19 @@ dDeprecateCategory x0 r = uncurryFields  r $ dDeprecateCategory' x0
     dDeprecateCategory' y0 y1 y2 = sendTx y0 ((tagged $ Tuple2 (untagged y1 ) (untagged y2 )) :: DDeprecateCategoryFn)
 
 --------------------------------------------------------------------------------
+-- | DInitFn
+--------------------------------------------------------------------------------
+
+
+type DInitFn = Tagged (SProxy "dInit(address)") (Tuple1 Address)
+
+dInit :: forall e. TransactionOptions NoPay -> { defaultErc20 :: Address } -> Web3 e HexString
+dInit x0 r = uncurryFields  r $ dInit' x0
+   where
+    dInit' :: TransactionOptions NoPay -> Tagged (SProxy "defaultErc20") Address -> Web3 e HexString
+    dInit' y0 y1 = sendTx y0 ((tagged $ Tuple1 (untagged y1 )) :: DInitFn)
+
+--------------------------------------------------------------------------------
 -- | DoLockdownFn
 --------------------------------------------------------------------------------
 
@@ -121,19 +134,6 @@ isAdmin x0 cm r = uncurryFields  r $ isAdmin' x0 cm
    where
     isAdmin' :: TransactionOptions NoPay -> ChainCursor -> Tagged (SProxy "a") Address -> Web3 e (Either CallError Boolean)
     isAdmin' y0 cm' y2 = map unTuple1 <$> call y0 cm' ((tagged $ Tuple1 (untagged y2 )) :: IsAdminFn)
-
---------------------------------------------------------------------------------
--- | GetDNameFn
---------------------------------------------------------------------------------
-
-
-type GetDNameFn = Tagged (SProxy "getDName(bytes32)") (Tuple1 (BytesN (D3 :& DOne D2)))
-
-getDName :: forall e. TransactionOptions NoPay -> ChainCursor -> { democHash :: (BytesN (D3 :& DOne D2)) } -> Web3 e (Either CallError String)
-getDName x0 cm r = uncurryFields  r $ getDName' x0 cm
-   where
-    getDName' :: TransactionOptions NoPay -> ChainCursor -> Tagged (SProxy "democHash") (BytesN (D3 :& DOne D2)) -> Web3 e (Either CallError String)
-    getDName' y0 cm' y2 = map unTuple1 <$> call y0 cm' ((tagged $ Tuple1 (untagged y2 )) :: GetDNameFn)
 
 --------------------------------------------------------------------------------
 -- | GetDAdminFn
@@ -239,6 +239,19 @@ type AdminsDisabledForeverFn = Tagged (SProxy "adminsDisabledForever()") (Tuple0
 
 adminsDisabledForever :: forall e. TransactionOptions NoPay -> ChainCursor -> Web3 e (Either CallError Boolean)
 adminsDisabledForever x0 cm = map unTuple1 <$> call x0 cm ((tagged $ Tuple0 ) :: AdminsDisabledForeverFn)
+
+--------------------------------------------------------------------------------
+-- | GetDErc20Fn
+--------------------------------------------------------------------------------
+
+
+type GetDErc20Fn = Tagged (SProxy "getDErc20(bytes32)") (Tuple1 (BytesN (D3 :& DOne D2)))
+
+getDErc20 :: forall e. TransactionOptions NoPay -> ChainCursor -> { democHash :: (BytesN (D3 :& DOne D2)) } -> Web3 e (Either CallError Address)
+getDErc20 x0 cm r = uncurryFields  r $ getDErc20' x0 cm
+   where
+    getDErc20' :: TransactionOptions NoPay -> ChainCursor -> Tagged (SProxy "democHash") (BytesN (D3 :& DOne D2)) -> Web3 e (Either CallError Address)
+    getDErc20' y0 cm' y2 = map unTuple1 <$> call y0 cm' ((tagged $ Tuple1 (untagged y2 )) :: GetDErc20Fn)
 
 --------------------------------------------------------------------------------
 -- | GetDHashFn
@@ -352,7 +365,7 @@ dAddBallot x0 r = uncurryFields  r $ dAddBallot' x0
 
 type DemocsFn = Tagged (SProxy "democs(bytes32)") (Tuple1 (BytesN (D3 :& DOne D2)))
 
-democs :: forall e. TransactionOptions NoPay -> ChainCursor -> (BytesN (D3 :& DOne D2)) -> Web3 e (Either CallError (Tuple2 String Address))
+democs :: forall e. TransactionOptions NoPay -> ChainCursor -> (BytesN (D3 :& DOne D2)) -> Web3 e (Either CallError (Tuple2 Address Address))
 democs x0 cm x2 = call x0 cm ((tagged $ Tuple1 x2) :: DemocsFn)
 
 --------------------------------------------------------------------------------
@@ -392,17 +405,27 @@ getGDemocsN :: forall e. TransactionOptions NoPay -> ChainCursor -> Web3 e (Eith
 getGDemocsN x0 cm = map unTuple1 <$> call x0 cm ((tagged $ Tuple0 ) :: GetGDemocsNFn)
 
 --------------------------------------------------------------------------------
--- | DInitFn
+-- | GetGErc20ToDemocsFn
 --------------------------------------------------------------------------------
 
 
-type DInitFn = Tagged (SProxy "dInit(string)") (Tuple1 String)
+type GetGErc20ToDemocsFn = Tagged (SProxy "getGErc20ToDemocs(address)") (Tuple1 Address)
 
-dInit :: forall e. TransactionOptions NoPay -> { democName :: String } -> Web3 e HexString
-dInit x0 r = uncurryFields  r $ dInit' x0
+getGErc20ToDemocs :: forall e. TransactionOptions NoPay -> ChainCursor -> { erc20 :: Address } -> Web3 e (Either CallError (Array (BytesN (D3 :& DOne D2))))
+getGErc20ToDemocs x0 cm r = uncurryFields  r $ getGErc20ToDemocs' x0 cm
    where
-    dInit' :: TransactionOptions NoPay -> Tagged (SProxy "democName") String -> Web3 e HexString
-    dInit' y0 y1 = sendTx y0 ((tagged $ Tuple1 (untagged y1 )) :: DInitFn)
+    getGErc20ToDemocs' :: TransactionOptions NoPay -> ChainCursor -> Tagged (SProxy "erc20") Address -> Web3 e (Either CallError (Array (BytesN (D3 :& DOne D2))))
+    getGErc20ToDemocs' y0 cm' y2 = map unTuple1 <$> call y0 cm' ((tagged $ Tuple1 (untagged y2 )) :: GetGErc20ToDemocsFn)
+
+--------------------------------------------------------------------------------
+-- | Erc20ToDemocFn
+--------------------------------------------------------------------------------
+
+
+type Erc20ToDemocFn = Tagged (SProxy "erc20ToDemoc(address,uint256)") (Tuple2 Address (UIntN (D2 :& D5 :& DOne D6)))
+
+erc20ToDemoc :: forall e. TransactionOptions NoPay -> ChainCursor -> Address -> (UIntN (D2 :& D5 :& DOne D6)) -> Web3 e (Either CallError (BytesN (D3 :& DOne D2)))
+erc20ToDemoc x0 cm x2 x3 = map unTuple1 <$> call x0 cm ((tagged $ Tuple2 x2 x3) :: Erc20ToDemocFn)
 
 --------------------------------------------------------------------------------
 -- | GetDInfoFn
@@ -411,10 +434,10 @@ dInit x0 r = uncurryFields  r $ dInit' x0
 
 type GetDInfoFn = Tagged (SProxy "getDInfo(bytes32)") (Tuple1 (BytesN (D3 :& DOne D2)))
 
-getDInfo :: forall e. TransactionOptions NoPay -> ChainCursor -> { democHash :: (BytesN (D3 :& DOne D2)) } -> Web3 e (Either CallError (Tuple3 String Address (UIntN (D2 :& D5 :& DOne D6))))
+getDInfo :: forall e. TransactionOptions NoPay -> ChainCursor -> { democHash :: (BytesN (D3 :& DOne D2)) } -> Web3 e (Either CallError (Tuple3 Address Address (UIntN (D2 :& D5 :& DOne D6))))
 getDInfo x0 cm r = uncurryFields  r $ getDInfo' x0 cm
    where
-    getDInfo' :: TransactionOptions NoPay -> ChainCursor -> Tagged (SProxy "democHash") (BytesN (D3 :& DOne D2)) -> Web3 e (Either CallError (Tuple3 String Address (UIntN (D2 :& D5 :& DOne D6))))
+    getDInfo' :: TransactionOptions NoPay -> ChainCursor -> Tagged (SProxy "democHash") (BytesN (D3 :& DOne D2)) -> Web3 e (Either CallError (Tuple3 Address Address (UIntN (D2 :& D5 :& DOne D6))))
     getDInfo' y0 cm' y2 = call y0 cm' ((tagged $ Tuple1 (untagged y2 )) :: GetDInfoFn)
 
 --------------------------------------------------------------------------------
@@ -462,6 +485,19 @@ type DemocCategoriesFn = Tagged (SProxy "democCategories(bytes32)") (Tuple1 (Byt
 
 democCategories :: forall e. TransactionOptions NoPay -> ChainCursor -> (BytesN (D3 :& DOne D2)) -> Web3 e (Either CallError (UIntN (D2 :& D5 :& DOne D6)))
 democCategories x0 cm x2 = map unTuple1 <$> call x0 cm ((tagged $ Tuple1 x2) :: DemocCategoriesFn)
+
+--------------------------------------------------------------------------------
+-- | SetDErc20Fn
+--------------------------------------------------------------------------------
+
+
+type SetDErc20Fn = Tagged (SProxy "setDErc20(bytes32,address)") (Tuple2 (BytesN (D3 :& DOne D2)) Address)
+
+setDErc20 :: forall e. TransactionOptions NoPay -> { democHash :: (BytesN (D3 :& DOne D2)), newErc20 :: Address } -> Web3 e HexString
+setDErc20 x0 r = uncurryFields  r $ setDErc20' x0
+   where
+    setDErc20' :: TransactionOptions NoPay -> Tagged (SProxy "democHash") (BytesN (D3 :& DOne D2)) -> Tagged (SProxy "newErc20") Address -> Web3 e HexString
+    setDErc20' y0 y1 y2 = sendTx y0 ((tagged $ Tuple2 (untagged y1 ) (untagged y2 )) :: SetDErc20Fn)
 
 --------------------------------------------------------------------------------
 -- | LowLevelNewBallot

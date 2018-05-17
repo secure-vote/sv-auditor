@@ -55,41 +55,18 @@ import Partial.Unsafe (unsafePartial)
 import SV.Light.Counts (countBinary, countRange, RangeOffset(..))
 import SV.Light.Delegation (getDelegates)
 import SV.Light.IPFS (getBlock)
-import SV.Light.Types.BallotBox (determineBallotVersion)
+import SV.Light.SmartContract (determineBallotBoxVersion)
 import SV.Light.Types.Eth (UInt256, uint256Px)
 import SV.Types.OutboundLogs (mkSUBal, mkSUDlgts, mkSUFail, mkSULog, mkSUWarn)
 import SV.Utils.BigNumber (bnToDec)
 import SecureVote.Contracts.FakeErc20 (balanceOf, decimals)
-import SecureVote.Contracts.SVLightBallotBox (ballotEncryptionSeckey, ballotMap, creationBlock, curve25519Pubkeys, endTime, getEncSeckey, nVotesCast, specHash, startTime, startingBlockAround)
+import SecureVote.Contracts.SVLightBallotBox (getEncSeckey)
 import SecureVote.Utils.Array (chunk, fromList, onlyJust)
 import SecureVote.Utils.IPFS (hexHashToSha256Bs58)
 import SecureVote.Utils.Time (currentTimestamp)
 import SecureVote.Utils.Web3Bin (bytesNToHex)
 import SecureVote.Web3.Web3 (runWeb3_, zeroHash)
 import Simple.JSON (readJSON')
-
-
-getBallotInfo :: forall e. {bScAddr :: Address} -> Aff (eth :: ETH, ref :: REF | e) BallotInfo
-getBallotInfo {bScAddr} = do
-    -- todo: test version stuff for ballot
-    ballotVersion <- determineBallotBoxVersion bScAddr
-
-    sequential $
-        mkBallotInfo <$> (map bytesNToHex $ pw3 $ specHash tos Latest)
-                     <*> (map uintToInt $ pw3 $ startTime tos Latest)
-                     <*> (map uintToInt $ pw3 $ endTime tos Latest)
-                     <*> (map (skCheck <<< bytesNToHex) $ pw3 $ ballotEncryptionSeckey tos Latest)
-                     <*> (map uintToInt $ pw3 $ nVotesCast tos Latest)
-                     <*> (map uintToInt $ pw3 $ creationBlock tos Latest)
-                     <*> (parallel $ determineBallotVersion bScAddr)
-  where
-    pw3 :: forall e2 a. Web3 (ref :: REF | e2) (Either CallError a) -> ParAff (eth :: ETH, ref :: REF | e2) a
-    pw3 = parallel <<< (eToAff <=< eToAff <=< runWeb3_)
-    -- transaction options
-    tos = defaultTransactionOptions # _to .~ Just bScAddr
-    uintToInt :: forall m a n. KnownSize n => UIntN n -> Int
-    uintToInt = unsafeToInt <<< unUIntN
-    skCheck a = if a == zeroHash then Nothing else Just a
 
 
 getBallotSpec :: forall e. HexString -> Aff (ref :: REF, ipfs :: IPFSEff, buffer :: BUFFER, ajax :: AJAX | e) BallotSpec
