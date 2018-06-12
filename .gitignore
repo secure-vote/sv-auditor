@@ -9,3 +9,4 @@
 /.psa*
 /_autogen/
 yarn-error.log
+_pureDist
