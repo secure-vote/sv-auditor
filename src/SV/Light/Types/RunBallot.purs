@@ -6,9 +6,10 @@ import Control.Monad.Eff.AVar (AVAR)
 import Control.Monad.Eff.Console (CONSOLE)
 import Control.Monad.Eff.Ref (REF)
 import Data.Map (Map)
+import Network.Ethereum.Web3 (BytesN)
 import Network.Ethereum.Web3.Types (Address, BigNumber, CallError, ChainCursor, ETH, NoPay, Web3(..))
 import Network.Ethereum.Web3.Types (HexString, TransactionOptions(..))
-import SV.Light.Types.Ballot (BallotSpec)
+import SV.Light.Types.Ballot (BallotSpec, OptsOuter)
 import SV.Light.Types.BallotBox (BallotFromSC)
 
 
@@ -38,10 +39,14 @@ data BallotBoxVersion = BVer Int
 
 
 type BallotOperations e =
-    { getBallots :: (Int -> Aff (| e) Unit -> Aff (| e) (Array BallotFromSC))
+    { getRawBallotsWDupes :: (Int -> Aff (| e) Unit -> Aff (| e) (Array BallotFromSC))
     , ballotOk :: Aff (| e) Boolean
     , getDelegateMap :: Aff (| e) DelegateMap
     , getBalanceMap :: Aff (| e) BalanceMap
+    , bOptions :: OptsOuter
+    , encPk :: Maybe HexString
+    , getEncSeckey :: Aff (| e) HexString
+    , getNVotes :: Aff (| e) Int
     }
 
 

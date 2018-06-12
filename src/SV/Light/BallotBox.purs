@@ -31,7 +31,7 @@ determineBallotBoxVersion addr = do
 
     let hasOldSpecHash = false
         bVer = case bVerEE of
-            Left w3e -> throwError $ error ""
+            Left w3e -> throwError $ "Failed to talk to Ethereum network: " <> show w3e
             Right bVerE -> case bVerE of
                     Left _ -> if hasOldSpecHash then BVer 2 else BVer 1
                     Right v -> BVer $ uint256ToIntUnsafe v
@@ -48,12 +48,12 @@ getBallotOps addr = do
     -- check if we're on a legacy ballot (swm-v1)
     -- check if we're using swm-v2 (first ballot spec options)
     -- check if we're using v3+
-    bVer <- determineBallotBoxVersion addr
+    genBallotOpts =<< determineBallotBoxVersion addr
 
-    case bVer of
-        BVer 1 -> ballotOpsV1 addr
-        BVer 2 -> ballotOpsV2 addr
-        BVer n -> genBallotOpts addr n
+
+-- (bSpec ^. _encryptionPK)
+
+-- getDelegateMap -- getDelegates {tknAddr, allBallots: plaintextBallots} dlgtSC (BN $ wrap $ embed ballotEndBlock)
 
 
 ballotOpsV1 :: Address -> Aff _ (BallotOperations _)
@@ -62,6 +62,7 @@ ballotOpsV1 addr =
          , ballotOk: (pure true)
          , getDelegateMap: pure Map.empty
          , getBalanceMap: pure Map.empty
+         , getEncSeckey: pure zeroHash -- bytesNToHex <$> w3BB getEncSeckey Latest
          }
 
 
@@ -74,13 +75,21 @@ ballotOpsV2 addr =
          }
 
 
-genBallotOpts :: Address -> Int -> Aff _ (BallotOperations _)
-genBallotOpts addr n
-    | n < 1     = throwError $ error $ "Invalid ballot version: " <> show n <> ". Bailing"
-    | n == 1    = ballotOpsV1 addr
-    | n == 2    = ballotOpsV2 addr
-    | otherwise = do
-        pure ballotOpsV2 addr
+ballotOpsV3 :: Address -> Aff _ (BallotOperations _)
+ballotOpsV3 addr =
+    pure { getBallots: (\i inc -> pure [])
+         , ballotOk: (pure true)
+         , getDelegateMap: pure Map.empty
+         , getBalanceMap: pure Map.empty
+         }
+
+
+genBallotOpts :: Address -> BallotBoxVersion -> Aff _ (BallotOperations _)
+genBallotOpts addr (BVer n)
+    | n == 1    = throwError "v1 not supported yet" -- ballotOpsV1 addr
+    | n == 2    = throwError "v2 not supported yet" -- ballotOpsV2 addr
+    | n == 3    = ballotOpsV3 addr
+    | otherwise = throwError $ error $ "Invalid ballot version: " <> show n <> ". Terminating audit."
 
 
 
