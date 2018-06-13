@@ -1,8 +1,8 @@
 --------------------------------------------------------------------------------
--- | SvEns
+-- | SvEnsIface
 --------------------------------------------------------------------------------
 
-module SecureVote.Contracts.SvEns where
+module SecureVote.Contracts.SvEnsIface where
 
 import Prelude 
 

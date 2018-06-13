@@ -1,8 +1,8 @@
 --------------------------------------------------------------------------------
--- | ENS
+-- | ENSIface
 --------------------------------------------------------------------------------
 
-module SecureVote.Contracts.ENS where
+module SecureVote.Contracts.ENSIface where
 
 import Prelude 
 

@@ -84,7 +84,7 @@ app {ethUrl, bScAddr, dev} updateF =
     do
         if dev then log "-- DEV MODE --" else pure unit
         liftEff $ setProvider ethUrl
-        addr <- mToAff "Unable to get BallotBox SC address" $ mkAddress =<< mkHexString bScAddr
+        addr <- mToAff "Unable to get ballot box smart contract address." $ mkAddress =<< mkHexString bScAddr
         bInfo <- getBallotInfo {bScAddr: addr}
         bSpec <- getBallotSpec bInfo.bHash
         let bbTos = defaultTransactionOptions # _to .~ Just addr

@@ -1,8 +1,8 @@
 --------------------------------------------------------------------------------
--- | ReverseRegistrar
+-- | ReverseRegistrarIface
 --------------------------------------------------------------------------------
 
-module SecureVote.Contracts.ReverseRegistrar where
+module SecureVote.Contracts.ReverseRegistrarIface where
 
 import Prelude 
 

@@ -8,3 +8,6 @@ import SecureVote.Web3.Web3 (runWeb3_)
 
 mkSC :: forall args e a. TxOpts -> SmartContract e args a
 mkSC tos f c args = eToAff <=< eToAff <=< runWeb3_ $ f tos c args
+
+scRespOkay :: forall a e1 e2. Either e1 (Either e2 a) -> Boolean
+scRespOkay = either (\_ -> false) (either (\_ -> false) (\_ -> true))
