@@ -1,8 +1,8 @@
 --------------------------------------------------------------------------------
--- | SVIndexBackend
+-- | BBFarm
 --------------------------------------------------------------------------------
 
-module SecureVote.Contracts.SVIndexBackend where
+module SecureVote.Contracts.BBFarm where
 
 import Prelude 
 
@@ -15,37 +15,73 @@ import Data.Lens ((.~))
 import Data.Maybe (Maybe(..), fromJust)
 import Data.Newtype (class Newtype)
 import Data.Symbol (SProxy)
-import Network.Ethereum.Web3 (_address, _topics, call, class EventFilter, sendTx)
+import Network.Ethereum.Web3 (Vector, _address, _topics, call, class EventFilter, deployContract, sendTx)
 import Network.Ethereum.Web3.Contract.Internal (uncurryFields)
-import Network.Ethereum.Web3.Solidity (BytesN, D1, D2, D3, D4, D5, D6, DOne, Tuple0(..), Tuple1(..), Tuple2(..), Tuple3(..), Tuple4(..), Tuple5, UIntN, class IndexedEvent, unTuple1)
+import Network.Ethereum.Web3.Solidity (ByteString, BytesN, D1, D2, D3, D4, D5, D6, DOne, Tuple0(..), Tuple1(..), Tuple10, Tuple2(..), Tuple3(..), Tuple5(..), UIntN, class IndexedEvent, unTuple1)
 import Network.Ethereum.Web3.Solidity.Size (type (:&))
-import Network.Ethereum.Web3.Types (Address, CallError, ChainCursor, HexString, NoPay, TransactionOptions, Web3, defaultFilter, mkHexString)
+import Network.Ethereum.Web3.Types (Address, CallError, ChainCursor, HexString, NoPay, TransactionOptions, Web3, Wei, defaultFilter, mkHexString)
 import Partial.Unsafe (unsafePartial)
 --------------------------------------------------------------------------------
--- | AddCategoryFn
+-- | GetCreationTsFn
 --------------------------------------------------------------------------------
 
 
-type AddCategoryFn = Tagged (SProxy "addCategory(bytes32,bytes32,bool,uint256)") (Tuple4 (BytesN (D3 :& DOne D2)) (BytesN (D3 :& DOne D2)) Boolean (UIntN (D2 :& D5 :& DOne D6)))
+type GetCreationTsFn = Tagged (SProxy "getCreationTs(uint256)") (Tuple1 (UIntN (D2 :& D5 :& DOne D6)))
 
-addCategory :: forall e. TransactionOptions NoPay -> { democHash :: (BytesN (D3 :& DOne D2)), categoryName :: (BytesN (D3 :& DOne D2)), hasParent :: Boolean, parent :: (UIntN (D2 :& D5 :& DOne D6)) } -> Web3 e HexString
-addCategory x0 r = uncurryFields  r $ addCategory' x0
+getCreationTs :: forall e. TransactionOptions NoPay -> ChainCursor -> { ballotId :: (UIntN (D2 :& D5 :& DOne D6)) } -> Web3 e (Either CallError (UIntN (D2 :& D5 :& DOne D6)))
+getCreationTs x0 cm r = uncurryFields  r $ getCreationTs' x0 cm
    where
-    addCategory' :: TransactionOptions NoPay -> Tagged (SProxy "democHash") (BytesN (D3 :& DOne D2)) -> Tagged (SProxy "categoryName") (BytesN (D3 :& DOne D2)) -> Tagged (SProxy "hasParent") Boolean -> Tagged (SProxy "parent") (UIntN (D2 :& D5 :& DOne D6)) -> Web3 e HexString
-    addCategory' y0 y1 y2 y3 y4 = sendTx y0 ((tagged $ Tuple4 (untagged y1 ) (untagged y2 ) (untagged y3 ) (untagged y4 )) :: AddCategoryFn)
+    getCreationTs' :: TransactionOptions NoPay -> ChainCursor -> Tagged (SProxy "ballotId") (UIntN (D2 :& D5 :& DOne D6)) -> Web3 e (Either CallError (UIntN (D2 :& D5 :& DOne D6)))
+    getCreationTs' y0 cm' y2 = map unTuple1 <$> call y0 cm' ((tagged $ Tuple1 (untagged y2 )) :: GetCreationTsFn)
 
 --------------------------------------------------------------------------------
--- | GetBallotBoxFn
+-- | SubmitVoteFn
 --------------------------------------------------------------------------------
 
 
-type GetBallotBoxFn = Tagged (SProxy "getBallotBox(bytes32,uint256)") (Tuple2 (BytesN (D3 :& DOne D2)) (UIntN (D2 :& D5 :& DOne D6)))
+type SubmitVoteFn = Tagged (SProxy "submitVote(uint256,bytes32,bytes)") (Tuple3 (UIntN (D2 :& D5 :& DOne D6)) (BytesN (D3 :& DOne D2)) ByteString)
 
-getBallotBox :: forall e. TransactionOptions NoPay -> ChainCursor -> { democHash :: (BytesN (D3 :& DOne D2)), id :: (UIntN (D2 :& D5 :& DOne D6)) } -> Web3 e (Either CallError Address)
-getBallotBox x0 cm r = uncurryFields  r $ getBallotBox' x0 cm
+submitVote :: forall e. TransactionOptions NoPay -> { ballotId :: (UIntN (D2 :& D5 :& DOne D6)), vote :: (BytesN (D3 :& DOne D2)), extra :: ByteString } -> Web3 e HexString
+submitVote x0 r = uncurryFields  r $ submitVote' x0
    where
-    getBallotBox' :: TransactionOptions NoPay -> ChainCursor -> Tagged (SProxy "democHash") (BytesN (D3 :& DOne D2)) -> Tagged (SProxy "id") (UIntN (D2 :& D5 :& DOne D6)) -> Web3 e (Either CallError Address)
-    getBallotBox' y0 cm' y2 y3 = map unTuple1 <$> call y0 cm' ((tagged $ Tuple2 (untagged y2 ) (untagged y3 )) :: GetBallotBoxFn)
+    submitVote' :: TransactionOptions NoPay -> Tagged (SProxy "ballotId") (UIntN (D2 :& D5 :& DOne D6)) -> Tagged (SProxy "vote") (BytesN (D3 :& DOne D2)) -> Tagged (SProxy "extra") ByteString -> Web3 e HexString
+    submitVote' y0 y1 y2 y3 = sendTx y0 ((tagged $ Tuple3 (untagged y1 ) (untagged y2 ) (untagged y3 )) :: SubmitVoteFn)
+
+--------------------------------------------------------------------------------
+-- | SetBallotOwnerFn
+--------------------------------------------------------------------------------
+
+
+type SetBallotOwnerFn = Tagged (SProxy "setBallotOwner(uint256,address)") (Tuple2 (UIntN (D2 :& D5 :& DOne D6)) Address)
+
+setBallotOwner :: forall e. TransactionOptions NoPay -> { ballotId :: (UIntN (D2 :& D5 :& DOne D6)), newOwner :: Address } -> Web3 e HexString
+setBallotOwner x0 r = uncurryFields  r $ setBallotOwner' x0
+   where
+    setBallotOwner' :: TransactionOptions NoPay -> Tagged (SProxy "ballotId") (UIntN (D2 :& D5 :& DOne D6)) -> Tagged (SProxy "newOwner") Address -> Web3 e HexString
+    setBallotOwner' y0 y1 y2 = sendTx y0 ((tagged $ Tuple2 (untagged y1 ) (untagged y2 )) :: SetBallotOwnerFn)
+
+--------------------------------------------------------------------------------
+-- | SetDeprecatedFn
+--------------------------------------------------------------------------------
+
+
+type SetDeprecatedFn = Tagged (SProxy "setDeprecated(uint256)") (Tuple1 (UIntN (D2 :& D5 :& DOne D6)))
+
+setDeprecated :: forall e. TransactionOptions NoPay -> { ballotId :: (UIntN (D2 :& D5 :& DOne D6)) } -> Web3 e HexString
+setDeprecated x0 r = uncurryFields  r $ setDeprecated' x0
+   where
+    setDeprecated' :: TransactionOptions NoPay -> Tagged (SProxy "ballotId") (UIntN (D2 :& D5 :& DOne D6)) -> Web3 e HexString
+    setDeprecated' y0 y1 = sendTx y0 ((tagged $ Tuple1 (untagged y1 )) :: SetDeprecatedFn)
+
+--------------------------------------------------------------------------------
+-- | GetVersionFn
+--------------------------------------------------------------------------------
+
+
+type GetVersionFn = Tagged (SProxy "getVersion()") (Tuple0 )
+
+getVersion :: forall e. TransactionOptions NoPay -> ChainCursor -> Web3 e (Either CallError (UIntN (D2 :& D5 :& DOne D6)))
+getVersion x0 cm = map unTuple1 <$> call x0 cm ((tagged $ Tuple0 ) :: GetVersionFn)
 
 --------------------------------------------------------------------------------
 -- | DoLockdownFn
@@ -71,6 +107,16 @@ setOwner x0 r = uncurryFields  r $ setOwner' x0
     setOwner' y0 y1 = sendTx y0 ((tagged $ Tuple1 (untagged y1 )) :: SetOwnerFn)
 
 --------------------------------------------------------------------------------
+-- | GetNBallotsFn
+--------------------------------------------------------------------------------
+
+
+type GetNBallotsFn = Tagged (SProxy "getNBallots()") (Tuple0 )
+
+getNBallots :: forall e. TransactionOptions NoPay -> ChainCursor -> Web3 e (Either CallError (UIntN (D2 :& D5 :& DOne D6)))
+getNBallots x0 cm = map unTuple1 <$> call x0 cm ((tagged $ Tuple0 ) :: GetNBallotsFn)
+
+--------------------------------------------------------------------------------
 -- | HasPermissionsFn
 --------------------------------------------------------------------------------
 
@@ -82,6 +128,19 @@ hasPermissions x0 cm r = uncurryFields  r $ hasPermissions' x0 cm
    where
     hasPermissions' :: TransactionOptions NoPay -> ChainCursor -> Tagged (SProxy "a") Address -> Web3 e (Either CallError Boolean)
     hasPermissions' y0 cm' y2 = map unTuple1 <$> call y0 cm' ((tagged $ Tuple1 (untagged y2 )) :: HasPermissionsFn)
+
+--------------------------------------------------------------------------------
+-- | GetAdminLogFn
+--------------------------------------------------------------------------------
+
+
+type GetAdminLogFn = Tagged (SProxy "getAdminLog(uint256)") (Tuple1 (UIntN (D2 :& D5 :& DOne D6)))
+
+getAdminLog :: forall e. TransactionOptions NoPay -> ChainCursor -> { n :: (UIntN (D2 :& D5 :& DOne D6)) } -> Web3 e (Either CallError Address)
+getAdminLog x0 cm r = uncurryFields  r $ getAdminLog' x0 cm
+   where
+    getAdminLog' :: TransactionOptions NoPay -> ChainCursor -> Tagged (SProxy "n") (UIntN (D2 :& D5 :& DOne D6)) -> Web3 e (Either CallError Address)
+    getAdminLog' y0 cm' y2 = map unTuple1 <$> call y0 cm' ((tagged $ Tuple1 (untagged y2 )) :: GetAdminLogFn)
 
 --------------------------------------------------------------------------------
 -- | IsAdminFn
@@ -97,43 +156,40 @@ isAdmin x0 cm r = uncurryFields  r $ isAdmin' x0 cm
     isAdmin' y0 cm' y2 = map unTuple1 <$> call y0 cm' ((tagged $ Tuple1 (untagged y2 )) :: IsAdminFn)
 
 --------------------------------------------------------------------------------
--- | GetDemocInfoFn
+-- | GetNamespaceFn
 --------------------------------------------------------------------------------
 
 
-type GetDemocInfoFn = Tagged (SProxy "getDemocInfo(bytes32)") (Tuple1 (BytesN (D3 :& DOne D2)))
+type GetNamespaceFn = Tagged (SProxy "getNamespace()") (Tuple0 )
 
-getDemocInfo :: forall e. TransactionOptions NoPay -> ChainCursor -> { democHash :: (BytesN (D3 :& DOne D2)) } -> Web3 e (Either CallError (Tuple3 String Address (UIntN (D2 :& D5 :& DOne D6))))
-getDemocInfo x0 cm r = uncurryFields  r $ getDemocInfo' x0 cm
+getNamespace :: forall e. TransactionOptions NoPay -> ChainCursor -> Web3 e (Either CallError (BytesN (DOne D4)))
+getNamespace x0 cm = map unTuple1 <$> call x0 cm ((tagged $ Tuple0 ) :: GetNamespaceFn)
+
+--------------------------------------------------------------------------------
+-- | GetSponsorsNFn
+--------------------------------------------------------------------------------
+
+
+type GetSponsorsNFn = Tagged (SProxy "getSponsorsN(uint256)") (Tuple1 (UIntN (D2 :& D5 :& DOne D6)))
+
+getSponsorsN :: forall e. TransactionOptions NoPay -> ChainCursor -> { ballotId :: (UIntN (D2 :& D5 :& DOne D6)) } -> Web3 e (Either CallError (UIntN (D2 :& D5 :& DOne D6)))
+getSponsorsN x0 cm r = uncurryFields  r $ getSponsorsN' x0 cm
    where
-    getDemocInfo' :: TransactionOptions NoPay -> ChainCursor -> Tagged (SProxy "democHash") (BytesN (D3 :& DOne D2)) -> Web3 e (Either CallError (Tuple3 String Address (UIntN (D2 :& D5 :& DOne D6))))
-    getDemocInfo' y0 cm' y2 = call y0 cm' ((tagged $ Tuple1 (untagged y2 )) :: GetDemocInfoFn)
+    getSponsorsN' :: TransactionOptions NoPay -> ChainCursor -> Tagged (SProxy "ballotId") (UIntN (D2 :& D5 :& DOne D6)) -> Web3 e (Either CallError (UIntN (D2 :& D5 :& DOne D6)))
+    getSponsorsN' y0 cm' y2 = map unTuple1 <$> call y0 cm' ((tagged $ Tuple1 (untagged y2 )) :: GetSponsorsNFn)
 
 --------------------------------------------------------------------------------
--- | GetDNameFn
+-- | GetSponsorFn
 --------------------------------------------------------------------------------
 
 
-type GetDNameFn = Tagged (SProxy "getDName(bytes32)") (Tuple1 (BytesN (D3 :& DOne D2)))
+type GetSponsorFn = Tagged (SProxy "getSponsor(uint256,uint256)") (Tuple2 (UIntN (D2 :& D5 :& DOne D6)) (UIntN (D2 :& D5 :& DOne D6)))
 
-getDName :: forall e. TransactionOptions NoPay -> ChainCursor -> { democHash :: (BytesN (D3 :& DOne D2)) } -> Web3 e (Either CallError String)
-getDName x0 cm r = uncurryFields  r $ getDName' x0 cm
+getSponsor :: forall e. TransactionOptions NoPay -> ChainCursor -> { ballotId :: (UIntN (D2 :& D5 :& DOne D6)), sponsorN :: (UIntN (D2 :& D5 :& DOne D6)) } -> Web3 e (Either CallError (Tuple2 Address (UIntN (D2 :& D5 :& DOne D6))))
+getSponsor x0 cm r = uncurryFields  r $ getSponsor' x0 cm
    where
-    getDName' :: TransactionOptions NoPay -> ChainCursor -> Tagged (SProxy "democHash") (BytesN (D3 :& DOne D2)) -> Web3 e (Either CallError String)
-    getDName' y0 cm' y2 = map unTuple1 <$> call y0 cm' ((tagged $ Tuple1 (untagged y2 )) :: GetDNameFn)
-
---------------------------------------------------------------------------------
--- | GetDAdminFn
---------------------------------------------------------------------------------
-
-
-type GetDAdminFn = Tagged (SProxy "getDAdmin(bytes32)") (Tuple1 (BytesN (D3 :& DOne D2)))
-
-getDAdmin :: forall e. TransactionOptions NoPay -> ChainCursor -> { democHash :: (BytesN (D3 :& DOne D2)) } -> Web3 e (Either CallError Address)
-getDAdmin x0 cm r = uncurryFields  r $ getDAdmin' x0 cm
-   where
-    getDAdmin' :: TransactionOptions NoPay -> ChainCursor -> Tagged (SProxy "democHash") (BytesN (D3 :& DOne D2)) -> Web3 e (Either CallError Address)
-    getDAdmin' y0 cm' y2 = map unTuple1 <$> call y0 cm' ((tagged $ Tuple1 (untagged y2 )) :: GetDAdminFn)
+    getSponsor' :: TransactionOptions NoPay -> ChainCursor -> Tagged (SProxy "ballotId") (UIntN (D2 :& D5 :& DOne D6)) -> Tagged (SProxy "sponsorN") (UIntN (D2 :& D5 :& DOne D6)) -> Web3 e (Either CallError (Tuple2 Address (UIntN (D2 :& D5 :& DOne D6))))
+    getSponsor' y0 cm' y2 y3 = call y0 cm' ((tagged $ Tuple2 (untagged y2 ) (untagged y3 )) :: GetSponsorFn)
 
 --------------------------------------------------------------------------------
 -- | CurrAdminEpochFn
@@ -146,14 +202,14 @@ currAdminEpoch :: forall e. TransactionOptions NoPay -> ChainCursor -> Web3 e (E
 currAdminEpoch x0 cm = map unTuple1 <$> call x0 cm ((tagged $ Tuple0 ) :: CurrAdminEpochFn)
 
 --------------------------------------------------------------------------------
--- | BallotListFn
+-- | GetAdminLogNFn
 --------------------------------------------------------------------------------
 
 
-type BallotListFn = Tagged (SProxy "ballotList(uint256)") (Tuple1 (UIntN (D2 :& D5 :& DOne D6)))
+type GetAdminLogNFn = Tagged (SProxy "getAdminLogN()") (Tuple0 )
 
-ballotList :: forall e. TransactionOptions NoPay -> ChainCursor -> (UIntN (D2 :& D5 :& DOne D6)) -> Web3 e (Either CallError (Tuple2 (BytesN (D3 :& DOne D2)) (UIntN (D2 :& D5 :& DOne D6))))
-ballotList x0 cm x2 = call x0 cm ((tagged $ Tuple1 x2) :: BallotListFn)
+getAdminLogN :: forall e. TransactionOptions NoPay -> ChainCursor -> Web3 e (Either CallError (UIntN (D2 :& D5 :& DOne D6)))
+getAdminLogN x0 cm = map unTuple1 <$> call x0 cm ((tagged $ Tuple0 ) :: GetAdminLogNFn)
 
 --------------------------------------------------------------------------------
 -- | IncAdminEpochFn
@@ -166,17 +222,17 @@ incAdminEpoch :: forall e. TransactionOptions NoPay -> Web3 e HexString
 incAdminEpoch x0 = sendTx x0 ((tagged $ Tuple0 ) :: IncAdminEpochFn)
 
 --------------------------------------------------------------------------------
--- | GetDemocHashFn
+-- | GetVoteFn
 --------------------------------------------------------------------------------
 
 
-type GetDemocHashFn = Tagged (SProxy "getDemocHash(bytes13)") (Tuple1 (BytesN (D1 :& DOne D3)))
+type GetVoteFn = Tagged (SProxy "getVote(uint256,uint256)") (Tuple2 (UIntN (D2 :& D5 :& DOne D6)) (UIntN (D2 :& D5 :& DOne D6)))
 
-getDemocHash :: forall e. TransactionOptions NoPay -> ChainCursor -> { prefix :: (BytesN (D1 :& DOne D3)) } -> Web3 e (Either CallError (BytesN (D3 :& DOne D2)))
-getDemocHash x0 cm r = uncurryFields  r $ getDemocHash' x0 cm
+getVote :: forall e. TransactionOptions NoPay -> ChainCursor -> { ballotId :: (UIntN (D2 :& D5 :& DOne D6)), voteId :: (UIntN (D2 :& D5 :& DOne D6)) } -> Web3 e (Either CallError (Tuple3 (BytesN (D3 :& DOne D2)) Address ByteString))
+getVote x0 cm r = uncurryFields  r $ getVote' x0 cm
    where
-    getDemocHash' :: TransactionOptions NoPay -> ChainCursor -> Tagged (SProxy "prefix") (BytesN (D1 :& DOne D3)) -> Web3 e (Either CallError (BytesN (D3 :& DOne D2)))
-    getDemocHash' y0 cm' y2 = map unTuple1 <$> call y0 cm' ((tagged $ Tuple1 (untagged y2 )) :: GetDemocHashFn)
+    getVote' :: TransactionOptions NoPay -> ChainCursor -> Tagged (SProxy "ballotId") (UIntN (D2 :& D5 :& DOne D6)) -> Tagged (SProxy "voteId") (UIntN (D2 :& D5 :& DOne D6)) -> Web3 e (Either CallError (Tuple3 (BytesN (D3 :& DOne D2)) Address ByteString))
+    getVote' y0 cm' y2 y3 = call y0 cm' ((tagged $ Tuple2 (untagged y2 ) (untagged y3 )) :: GetVoteFn)
 
 --------------------------------------------------------------------------------
 -- | SetAdminFn
@@ -190,6 +246,16 @@ setAdmin x0 r = uncurryFields  r $ setAdmin' x0
    where
     setAdmin' :: TransactionOptions NoPay -> Tagged (SProxy "a") Address -> Tagged (SProxy "_givePerms") Boolean -> Web3 e HexString
     setAdmin' y0 y1 y2 = sendTx y0 ((tagged $ Tuple2 (untagged y1 ) (untagged y2 )) :: SetAdminFn)
+
+--------------------------------------------------------------------------------
+-- | PayoutAllFn
+--------------------------------------------------------------------------------
+
+
+type PayoutAllFn = Tagged (SProxy "payoutAll()") (Tuple0 )
+
+payoutAll :: forall e. TransactionOptions NoPay -> Web3 e HexString
+payoutAll x0 = sendTx x0 ((tagged $ Tuple0 ) :: PayoutAllFn)
 
 --------------------------------------------------------------------------------
 -- | UpgradeMeFn
@@ -215,27 +281,30 @@ adminsDisabledForever :: forall e. TransactionOptions NoPay -> ChainCursor -> We
 adminsDisabledForever x0 cm = map unTuple1 <$> call x0 cm ((tagged $ Tuple0 ) :: AdminsDisabledForeverFn)
 
 --------------------------------------------------------------------------------
--- | GetDemocCategoryFn
+-- | SubmitProxyVoteFn
 --------------------------------------------------------------------------------
 
 
-type GetDemocCategoryFn = Tagged (SProxy "getDemocCategory(bytes32,uint256)") (Tuple2 (BytesN (D3 :& DOne D2)) (UIntN (D2 :& D5 :& DOne D6)))
+type SubmitProxyVoteFn = Tagged (SProxy "submitProxyVote(bytes32[5],bytes)") (Tuple2 (Vector (DOne D5) (BytesN (D3 :& DOne D2))) ByteString)
 
-getDemocCategory :: forall e. TransactionOptions NoPay -> ChainCursor -> { democHash :: (BytesN (D3 :& DOne D2)), categoryId :: (UIntN (D2 :& D5 :& DOne D6)) } -> Web3 e (Either CallError (Tuple4 Boolean (BytesN (D3 :& DOne D2)) Boolean (UIntN (D2 :& D5 :& DOne D6))))
-getDemocCategory x0 cm r = uncurryFields  r $ getDemocCategory' x0 cm
+submitProxyVote :: forall e. TransactionOptions NoPay -> { proxyReq :: (Vector (DOne D5) (BytesN (D3 :& DOne D2))), extra :: ByteString } -> Web3 e HexString
+submitProxyVote x0 r = uncurryFields  r $ submitProxyVote' x0
    where
-    getDemocCategory' :: TransactionOptions NoPay -> ChainCursor -> Tagged (SProxy "democHash") (BytesN (D3 :& DOne D2)) -> Tagged (SProxy "categoryId") (UIntN (D2 :& D5 :& DOne D6)) -> Web3 e (Either CallError (Tuple4 Boolean (BytesN (D3 :& DOne D2)) Boolean (UIntN (D2 :& D5 :& DOne D6))))
-    getDemocCategory' y0 cm' y2 y3 = call y0 cm' ((tagged $ Tuple2 (untagged y2 ) (untagged y3 )) :: GetDemocCategoryFn)
+    submitProxyVote' :: TransactionOptions NoPay -> Tagged (SProxy "proxyReq") (Vector (DOne D5) (BytesN (D3 :& DOne D2))) -> Tagged (SProxy "extra") ByteString -> Web3 e HexString
+    submitProxyVote' y0 y1 y2 = sendTx y0 ((tagged $ Tuple2 (untagged y1 ) (untagged y2 )) :: SubmitProxyVoteFn)
 
 --------------------------------------------------------------------------------
--- | NDemocsFn
+-- | GetTotalSponsorshipFn
 --------------------------------------------------------------------------------
 
 
-type NDemocsFn = Tagged (SProxy "nDemocs()") (Tuple0 )
+type GetTotalSponsorshipFn = Tagged (SProxy "getTotalSponsorship(uint256)") (Tuple1 (UIntN (D2 :& D5 :& DOne D6)))
 
-nDemocs :: forall e. TransactionOptions NoPay -> ChainCursor -> Web3 e (Either CallError (UIntN (D2 :& D5 :& DOne D6)))
-nDemocs x0 cm = map unTuple1 <$> call x0 cm ((tagged $ Tuple0 ) :: NDemocsFn)
+getTotalSponsorship :: forall e. TransactionOptions NoPay -> ChainCursor -> { ballotId :: (UIntN (D2 :& D5 :& DOne D6)) } -> Web3 e (Either CallError (UIntN (D2 :& D5 :& DOne D6)))
+getTotalSponsorship x0 cm r = uncurryFields  r $ getTotalSponsorship' x0 cm
+   where
+    getTotalSponsorship' :: TransactionOptions NoPay -> ChainCursor -> Tagged (SProxy "ballotId") (UIntN (D2 :& D5 :& DOne D6)) -> Web3 e (Either CallError (UIntN (D2 :& D5 :& DOne D6)))
+    getTotalSponsorship' y0 cm' y2 = map unTuple1 <$> call y0 cm' ((tagged $ Tuple1 (untagged y2 )) :: GetTotalSponsorshipFn)
 
 --------------------------------------------------------------------------------
 -- | SetPermissionsFn
@@ -261,37 +330,17 @@ adminLockdown :: forall e. TransactionOptions NoPay -> ChainCursor -> Web3 e (Ei
 adminLockdown x0 cm = map unTuple1 <$> call x0 cm ((tagged $ Tuple0 ) :: AdminLockdownFn)
 
 --------------------------------------------------------------------------------
--- | NBallotsGlobalFn
+-- | UpgradeMeAdminFn
 --------------------------------------------------------------------------------
 
 
-type NBallotsGlobalFn = Tagged (SProxy "nBallotsGlobal()") (Tuple0 )
+type UpgradeMeAdminFn = Tagged (SProxy "upgradeMeAdmin(address)") (Tuple1 Address)
 
-nBallotsGlobal :: forall e. TransactionOptions NoPay -> ChainCursor -> Web3 e (Either CallError (UIntN (D2 :& D5 :& DOne D6)))
-nBallotsGlobal x0 cm = map unTuple1 <$> call x0 cm ((tagged $ Tuple0 ) :: NBallotsGlobalFn)
-
---------------------------------------------------------------------------------
--- | DemocPrefixToHashFn
---------------------------------------------------------------------------------
-
-
-type DemocPrefixToHashFn = Tagged (SProxy "democPrefixToHash(bytes13)") (Tuple1 (BytesN (D1 :& DOne D3)))
-
-democPrefixToHash :: forall e. TransactionOptions NoPay -> ChainCursor -> (BytesN (D1 :& DOne D3)) -> Web3 e (Either CallError (BytesN (D3 :& DOne D2)))
-democPrefixToHash x0 cm x2 = map unTuple1 <$> call x0 cm ((tagged $ Tuple1 x2) :: DemocPrefixToHashFn)
-
---------------------------------------------------------------------------------
--- | GetNthBallotFn
---------------------------------------------------------------------------------
-
-
-type GetNthBallotFn = Tagged (SProxy "getNthBallot(bytes32,uint256)") (Tuple2 (BytesN (D3 :& DOne D2)) (UIntN (D2 :& D5 :& DOne D6)))
-
-getNthBallot :: forall e. TransactionOptions NoPay -> ChainCursor -> { democHash :: (BytesN (D3 :& DOne D2)), n :: (UIntN (D2 :& D5 :& DOne D6)) } -> Web3 e (Either CallError (Tuple5 (BytesN (D3 :& DOne D2)) (BytesN (D3 :& DOne D2)) Address (UIntN (D6 :& DOne D4)) (UIntN (D6 :& DOne D4))))
-getNthBallot x0 cm r = uncurryFields  r $ getNthBallot' x0 cm
+upgradeMeAdmin :: forall e. TransactionOptions NoPay -> { newAdmin :: Address } -> Web3 e HexString
+upgradeMeAdmin x0 r = uncurryFields  r $ upgradeMeAdmin' x0
    where
-    getNthBallot' :: TransactionOptions NoPay -> ChainCursor -> Tagged (SProxy "democHash") (BytesN (D3 :& DOne D2)) -> Tagged (SProxy "n") (UIntN (D2 :& D5 :& DOne D6)) -> Web3 e (Either CallError (Tuple5 (BytesN (D3 :& DOne D2)) (BytesN (D3 :& DOne D2)) Address (UIntN (D6 :& DOne D4)) (UIntN (D6 :& DOne D4))))
-    getNthBallot' y0 cm' y2 y3 = call y0 cm' ((tagged $ Tuple2 (untagged y2 ) (untagged y3 )) :: GetNthBallotFn)
+    upgradeMeAdmin' :: TransactionOptions NoPay -> Tagged (SProxy "newAdmin") Address -> Web3 e HexString
+    upgradeMeAdmin' y0 y1 = sendTx y0 ((tagged $ Tuple1 (untagged y1 )) :: UpgradeMeAdminFn)
 
 --------------------------------------------------------------------------------
 -- | OwnerFn
@@ -304,27 +353,43 @@ owner :: forall e. TransactionOptions NoPay -> ChainCursor -> Web3 e (Either Cal
 owner x0 cm = map unTuple1 <$> call x0 cm ((tagged $ Tuple0 ) :: OwnerFn)
 
 --------------------------------------------------------------------------------
--- | DemocsFn
+-- | GetDetailsFn
 --------------------------------------------------------------------------------
 
 
-type DemocsFn = Tagged (SProxy "democs(bytes32)") (Tuple1 (BytesN (D3 :& DOne D2)))
+type GetDetailsFn = Tagged (SProxy "getDetails(uint256,address)") (Tuple2 (UIntN (D2 :& D5 :& DOne D6)) Address)
 
-democs :: forall e. TransactionOptions NoPay -> ChainCursor -> (BytesN (D3 :& DOne D2)) -> Web3 e (Either CallError (Tuple2 String Address))
-democs x0 cm x2 = call x0 cm ((tagged $ Tuple1 x2) :: DemocsFn)
-
---------------------------------------------------------------------------------
--- | AddBallotFn
---------------------------------------------------------------------------------
-
-
-type AddBallotFn = Tagged (SProxy "addBallot(bytes32,bytes32,address)") (Tuple3 (BytesN (D3 :& DOne D2)) (BytesN (D3 :& DOne D2)) Address)
-
-addBallot :: forall e. TransactionOptions NoPay -> { democHash :: (BytesN (D3 :& DOne D2)), extraData :: (BytesN (D3 :& DOne D2)), bb :: Address } -> Web3 e HexString
-addBallot x0 r = uncurryFields  r $ addBallot' x0
+getDetails :: forall e. TransactionOptions NoPay -> ChainCursor -> { ballotId :: (UIntN (D2 :& D5 :& DOne D6)), voter :: Address } -> Web3 e (Either CallError (Tuple10 Boolean (UIntN (D2 :& D5 :& DOne D6)) (BytesN (D3 :& DOne D2)) (UIntN (D1 :& DOne D6)) (UIntN (D6 :& DOne D4)) (UIntN (D6 :& DOne D4)) (BytesN (D3 :& DOne D2)) Boolean Address (BytesN (D1 :& DOne D6))))
+getDetails x0 cm r = uncurryFields  r $ getDetails' x0 cm
    where
-    addBallot' :: TransactionOptions NoPay -> Tagged (SProxy "democHash") (BytesN (D3 :& DOne D2)) -> Tagged (SProxy "extraData") (BytesN (D3 :& DOne D2)) -> Tagged (SProxy "bb") Address -> Web3 e HexString
-    addBallot' y0 y1 y2 y3 = sendTx y0 ((tagged $ Tuple3 (untagged y1 ) (untagged y2 ) (untagged y3 )) :: AddBallotFn)
+    getDetails' :: TransactionOptions NoPay -> ChainCursor -> Tagged (SProxy "ballotId") (UIntN (D2 :& D5 :& DOne D6)) -> Tagged (SProxy "voter") Address -> Web3 e (Either CallError (Tuple10 Boolean (UIntN (D2 :& D5 :& DOne D6)) (BytesN (D3 :& DOne D2)) (UIntN (D1 :& DOne D6)) (UIntN (D6 :& DOne D4)) (UIntN (D6 :& DOne D4)) (BytesN (D3 :& DOne D2)) Boolean Address (BytesN (D1 :& DOne D6))))
+    getDetails' y0 cm' y2 y3 = call y0 cm' ((tagged $ Tuple2 (untagged y2 ) (untagged y3 )) :: GetDetailsFn)
+
+--------------------------------------------------------------------------------
+-- | RevealSeckeyFn
+--------------------------------------------------------------------------------
+
+
+type RevealSeckeyFn = Tagged (SProxy "revealSeckey(uint256,bytes32)") (Tuple2 (UIntN (D2 :& D5 :& DOne D6)) (BytesN (D3 :& DOne D2)))
+
+revealSeckey :: forall e. TransactionOptions NoPay -> { ballotId :: (UIntN (D2 :& D5 :& DOne D6)), sk :: (BytesN (D3 :& DOne D2)) } -> Web3 e HexString
+revealSeckey x0 r = uncurryFields  r $ revealSeckey' x0
+   where
+    revealSeckey' :: TransactionOptions NoPay -> Tagged (SProxy "ballotId") (UIntN (D2 :& D5 :& DOne D6)) -> Tagged (SProxy "sk") (BytesN (D3 :& DOne D2)) -> Web3 e HexString
+    revealSeckey' y0 y1 y2 = sendTx y0 ((tagged $ Tuple2 (untagged y1 ) (untagged y2 )) :: RevealSeckeyFn)
+
+--------------------------------------------------------------------------------
+-- | SetEndTimeFn
+--------------------------------------------------------------------------------
+
+
+type SetEndTimeFn = Tagged (SProxy "setEndTime(uint256,uint64)") (Tuple2 (UIntN (D2 :& D5 :& DOne D6)) (UIntN (D6 :& DOne D4)))
+
+setEndTime :: forall e. TransactionOptions NoPay -> { ballotId :: (UIntN (D2 :& D5 :& DOne D6)), newEndTime :: (UIntN (D6 :& DOne D4)) } -> Web3 e HexString
+setEndTime x0 r = uncurryFields  r $ setEndTime' x0
+   where
+    setEndTime' :: TransactionOptions NoPay -> Tagged (SProxy "ballotId") (UIntN (D2 :& D5 :& DOne D6)) -> Tagged (SProxy "newEndTime") (UIntN (D6 :& DOne D4)) -> Web3 e HexString
+    setEndTime' y0 y1 y2 = sendTx y0 ((tagged $ Tuple2 (untagged y1 ) (untagged y2 )) :: SetEndTimeFn)
 
 --------------------------------------------------------------------------------
 -- | UpgradePermissionedSCFn
@@ -340,151 +405,87 @@ upgradePermissionedSC x0 r = uncurryFields  r $ upgradePermissionedSC' x0
     upgradePermissionedSC' y0 y1 y2 = sendTx y0 ((tagged $ Tuple2 (untagged y1 ) (untagged y2 )) :: UpgradePermissionedSCFn)
 
 --------------------------------------------------------------------------------
--- | GetBallotAddrFn
+-- | SponsorFn
 --------------------------------------------------------------------------------
 
 
-type GetBallotAddrFn = Tagged (SProxy "getBallotAddr(bytes32,uint256)") (Tuple2 (BytesN (D3 :& DOne D2)) (UIntN (D2 :& D5 :& DOne D6)))
+type SponsorFn = Tagged (SProxy "sponsor(uint256)") (Tuple1 (UIntN (D2 :& D5 :& DOne D6)))
 
-getBallotAddr :: forall e. TransactionOptions NoPay -> ChainCursor -> { democHash :: (BytesN (D3 :& DOne D2)), n :: (UIntN (D2 :& D5 :& DOne D6)) } -> Web3 e (Either CallError Address)
-getBallotAddr x0 cm r = uncurryFields  r $ getBallotAddr' x0 cm
+sponsor :: forall e. TransactionOptions Wei -> { ballotId :: (UIntN (D2 :& D5 :& DOne D6)) } -> Web3 e HexString
+sponsor x0 r = uncurryFields  r $ sponsor' x0
    where
-    getBallotAddr' :: TransactionOptions NoPay -> ChainCursor -> Tagged (SProxy "democHash") (BytesN (D3 :& DOne D2)) -> Tagged (SProxy "n") (UIntN (D2 :& D5 :& DOne D6)) -> Web3 e (Either CallError Address)
-    getBallotAddr' y0 cm' y2 y3 = map unTuple1 <$> call y0 cm' ((tagged $ Tuple2 (untagged y2 ) (untagged y3 )) :: GetBallotAddrFn)
+    sponsor' :: TransactionOptions Wei -> Tagged (SProxy "ballotId") (UIntN (D2 :& D5 :& DOne D6)) -> Web3 e HexString
+    sponsor' y0 y1 = sendTx y0 ((tagged $ Tuple1 (untagged y1 )) :: SponsorFn)
 
 --------------------------------------------------------------------------------
--- | GetDemocNCategoriesFn
+-- | GetSequenceNumberFn
 --------------------------------------------------------------------------------
 
 
-type GetDemocNCategoriesFn = Tagged (SProxy "getDemocNCategories(bytes32)") (Tuple1 (BytesN (D3 :& DOne D2)))
+type GetSequenceNumberFn = Tagged (SProxy "getSequenceNumber(uint256,address)") (Tuple2 (UIntN (D2 :& D5 :& DOne D6)) Address)
 
-getDemocNCategories :: forall e. TransactionOptions NoPay -> ChainCursor -> { democHash :: (BytesN (D3 :& DOne D2)) } -> Web3 e (Either CallError (UIntN (D2 :& D5 :& DOne D6)))
-getDemocNCategories x0 cm r = uncurryFields  r $ getDemocNCategories' x0 cm
+getSequenceNumber :: forall e. TransactionOptions NoPay -> ChainCursor -> { ballotId :: (UIntN (D2 :& D5 :& DOne D6)), voter :: Address } -> Web3 e (Either CallError (UIntN (D3 :& DOne D2)))
+getSequenceNumber x0 cm r = uncurryFields  r $ getSequenceNumber' x0 cm
    where
-    getDemocNCategories' :: TransactionOptions NoPay -> ChainCursor -> Tagged (SProxy "democHash") (BytesN (D3 :& DOne D2)) -> Web3 e (Either CallError (UIntN (D2 :& D5 :& DOne D6)))
-    getDemocNCategories' y0 cm' y2 = map unTuple1 <$> call y0 cm' ((tagged $ Tuple1 (untagged y2 )) :: GetDemocNCategoriesFn)
+    getSequenceNumber' :: TransactionOptions NoPay -> ChainCursor -> Tagged (SProxy "ballotId") (UIntN (D2 :& D5 :& DOne D6)) -> Tagged (SProxy "voter") Address -> Web3 e (Either CallError (UIntN (D3 :& DOne D2)))
+    getSequenceNumber' y0 cm' y2 y3 = map unTuple1 <$> call y0 cm' ((tagged $ Tuple2 (untagged y2 ) (untagged y3 )) :: GetSequenceNumberFn)
 
 --------------------------------------------------------------------------------
--- | NBallotsFn
+-- | GetBBLibVersionFn
 --------------------------------------------------------------------------------
 
 
-type NBallotsFn = Tagged (SProxy "nBallots(bytes32)") (Tuple1 (BytesN (D3 :& DOne D2)))
+type GetBBLibVersionFn = Tagged (SProxy "getBBLibVersion()") (Tuple0 )
 
-nBallots :: forall e. TransactionOptions NoPay -> ChainCursor -> { democHash :: (BytesN (D3 :& DOne D2)) } -> Web3 e (Either CallError (UIntN (D2 :& D5 :& DOne D6)))
-nBallots x0 cm r = uncurryFields  r $ nBallots' x0 cm
+getBBLibVersion :: forall e. TransactionOptions NoPay -> ChainCursor -> Web3 e (Either CallError (UIntN (D2 :& D5 :& DOne D6)))
+getBBLibVersion x0 cm = map unTuple1 <$> call x0 cm ((tagged $ Tuple0 ) :: GetBBLibVersionFn)
+
+--------------------------------------------------------------------------------
+-- | InitBallotFn
+--------------------------------------------------------------------------------
+
+
+type InitBallotFn = Tagged (SProxy "initBallot(bytes32,uint256,address,address,bytes24)") (Tuple5 (BytesN (D3 :& DOne D2)) (UIntN (D2 :& D5 :& DOne D6)) Address Address (BytesN (D2 :& DOne D4)))
+
+initBallot :: forall e. TransactionOptions NoPay -> { specHash :: (BytesN (D3 :& DOne D2)), packed :: (UIntN (D2 :& D5 :& DOne D6)), ix :: Address, bbAdmin :: Address, extraData :: (BytesN (D2 :& DOne D4)) } -> Web3 e HexString
+initBallot x0 r = uncurryFields  r $ initBallot' x0
    where
-    nBallots' :: TransactionOptions NoPay -> ChainCursor -> Tagged (SProxy "democHash") (BytesN (D3 :& DOne D2)) -> Web3 e (Either CallError (UIntN (D2 :& D5 :& DOne D6)))
-    nBallots' y0 cm' y2 = map unTuple1 <$> call y0 cm' ((tagged $ Tuple1 (untagged y2 )) :: NBallotsFn)
+    initBallot' :: TransactionOptions NoPay -> Tagged (SProxy "specHash") (BytesN (D3 :& DOne D2)) -> Tagged (SProxy "packed") (UIntN (D2 :& D5 :& DOne D6)) -> Tagged (SProxy "ix") Address -> Tagged (SProxy "bbAdmin") Address -> Tagged (SProxy "extraData") (BytesN (D2 :& DOne D4)) -> Web3 e HexString
+    initBallot' y0 y1 y2 y3 y4 y5 = sendTx y0 ((tagged $ Tuple5 (untagged y1 ) (untagged y2 ) (untagged y3 ) (untagged y4 ) (untagged y5 )) :: InitBallotFn)
 
 --------------------------------------------------------------------------------
--- | DemocListFn
---------------------------------------------------------------------------------
-
-
-type DemocListFn = Tagged (SProxy "democList(uint256)") (Tuple1 (UIntN (D2 :& D5 :& DOne D6)))
-
-democList :: forall e. TransactionOptions NoPay -> ChainCursor -> (UIntN (D2 :& D5 :& DOne D6)) -> Web3 e (Either CallError (BytesN (D3 :& DOne D2)))
-democList x0 cm x2 = map unTuple1 <$> call x0 cm ((tagged $ Tuple1 x2) :: DemocListFn)
-
---------------------------------------------------------------------------------
--- | SetDAdminFn
+-- | ConstructorFn
 --------------------------------------------------------------------------------
 
 
-type SetDAdminFn = Tagged (SProxy "setDAdmin(bytes32,address)") (Tuple2 (BytesN (D3 :& DOne D2)) Address)
+type ConstructorFn = Tagged (SProxy "constructor()") (Tuple0 )
 
-setDAdmin :: forall e. TransactionOptions NoPay -> { democHash :: (BytesN (D3 :& DOne D2)), newAdmin :: Address } -> Web3 e HexString
-setDAdmin x0 r = uncurryFields  r $ setDAdmin' x0
-   where
-    setDAdmin' :: TransactionOptions NoPay -> Tagged (SProxy "democHash") (BytesN (D3 :& DOne D2)) -> Tagged (SProxy "newAdmin") Address -> Web3 e HexString
-    setDAdmin' y0 y1 y2 = sendTx y0 ((tagged $ Tuple2 (untagged y1 ) (untagged y2 )) :: SetDAdminFn)
+constructor :: forall e. TransactionOptions NoPay -> HexString -> Web3 e HexString
+constructor x0 bc = deployContract x0 bc ((tagged $ Tuple0 ) :: ConstructorFn)
 
 --------------------------------------------------------------------------------
--- | DemocCategoriesFn
+-- | PayoutAll
 --------------------------------------------------------------------------------
 
 
-type DemocCategoriesFn = Tagged (SProxy "democCategories(bytes32)") (Tuple1 (BytesN (D3 :& DOne D2)))
+newtype PayoutAll = PayoutAll {payTo :: Address,value :: (UIntN (D2 :& D5 :& DOne D6))}
 
-democCategories :: forall e. TransactionOptions NoPay -> ChainCursor -> (BytesN (D3 :& DOne D2)) -> Web3 e (Either CallError (UIntN (D2 :& D5 :& DOne D6)))
-democCategories x0 cm x2 = map unTuple1 <$> call x0 cm ((tagged $ Tuple1 x2) :: DemocCategoriesFn)
+derive instance newtypePayoutAll :: Newtype PayoutAll _
 
---------------------------------------------------------------------------------
--- | DeprecateCategoryFn
---------------------------------------------------------------------------------
-
-
-type DeprecateCategoryFn = Tagged (SProxy "deprecateCategory(bytes32,uint256)") (Tuple2 (BytesN (D3 :& DOne D2)) (UIntN (D2 :& D5 :& DOne D6)))
-
-deprecateCategory :: forall e. TransactionOptions NoPay -> { democHash :: (BytesN (D3 :& DOne D2)), categoryId :: (UIntN (D2 :& D5 :& DOne D6)) } -> Web3 e HexString
-deprecateCategory x0 r = uncurryFields  r $ deprecateCategory' x0
-   where
-    deprecateCategory' :: TransactionOptions NoPay -> Tagged (SProxy "democHash") (BytesN (D3 :& DOne D2)) -> Tagged (SProxy "categoryId") (UIntN (D2 :& D5 :& DOne D6)) -> Web3 e HexString
-    deprecateCategory' y0 y1 y2 = sendTx y0 ((tagged $ Tuple2 (untagged y1 ) (untagged y2 )) :: DeprecateCategoryFn)
-
---------------------------------------------------------------------------------
--- | InitDemocFn
---------------------------------------------------------------------------------
-
-
-type InitDemocFn = Tagged (SProxy "initDemoc(string)") (Tuple1 String)
-
-initDemoc :: forall e. TransactionOptions NoPay -> { democName :: String } -> Web3 e HexString
-initDemoc x0 r = uncurryFields  r $ initDemoc' x0
-   where
-    initDemoc' :: TransactionOptions NoPay -> Tagged (SProxy "democName") String -> Web3 e HexString
-    initDemoc' y0 y1 = sendTx y0 ((tagged $ Tuple1 (untagged y1 )) :: InitDemocFn)
-
---------------------------------------------------------------------------------
--- | LowLevelNewBallot
---------------------------------------------------------------------------------
-
-
-newtype LowLevelNewBallot = LowLevelNewBallot {democHash :: (BytesN (D3 :& DOne D2)),id :: (UIntN (D2 :& D5 :& DOne D6))}
-
-derive instance newtypeLowLevelNewBallot :: Newtype LowLevelNewBallot _
-
-instance eventFilterLowLevelNewBallot :: EventFilter LowLevelNewBallot where
+instance eventFilterPayoutAll :: EventFilter PayoutAll where
 	eventFilter _ addr = defaultFilter
 		# _address .~ Just addr
-		# _topics .~ Just [Just ( unsafePartial $ fromJust $ mkHexString "f6f57c07a30141547a067c1e27493aa7c387a4b8a37be5a663e9045b7cd7cc3b")]
+		# _topics .~ Just [Just ( unsafePartial $ fromJust $ mkHexString "e2644f8d6fd3207ea14ef6a361b94bee348c8e5834539376241010dbd2562472")]
 
-instance indexedEventLowLevelNewBallot :: IndexedEvent (Tuple0 ) (Tuple2 (Tagged (SProxy "democHash") (BytesN (D3 :& DOne D2))) (Tagged (SProxy "id") (UIntN (D2 :& D5 :& DOne D6)))) LowLevelNewBallot where
+instance indexedEventPayoutAll :: IndexedEvent (Tuple0 ) (Tuple2 (Tagged (SProxy "payTo") Address) (Tagged (SProxy "value") (UIntN (D2 :& D5 :& DOne D6)))) PayoutAll where
   isAnonymous _ = false
 
-derive instance genericLowLevelNewBallot :: Generic LowLevelNewBallot _
+derive instance genericPayoutAll :: Generic PayoutAll _
 
-instance eventGenericLowLevelNewBallotShow :: Show LowLevelNewBallot where
+instance eventGenericPayoutAllShow :: Show PayoutAll where
 	show = genericShow
 
-instance eventGenericLowLevelNewBalloteq :: Eq LowLevelNewBallot where
-	eq = genericEq
-
---------------------------------------------------------------------------------
--- | LowLevelNewDemoc
---------------------------------------------------------------------------------
-
-
-newtype LowLevelNewDemoc = LowLevelNewDemoc {democHash :: (BytesN (D3 :& DOne D2))}
-
-derive instance newtypeLowLevelNewDemoc :: Newtype LowLevelNewDemoc _
-
-instance eventFilterLowLevelNewDemoc :: EventFilter LowLevelNewDemoc where
-	eventFilter _ addr = defaultFilter
-		# _address .~ Just addr
-		# _topics .~ Just [Just ( unsafePartial $ fromJust $ mkHexString "05af2d8adc0cbd4286b8b80a28358800f55c9f7e4f752aa1b1ccf6d9482cfa1a")]
-
-instance indexedEventLowLevelNewDemoc :: IndexedEvent (Tuple0 ) (Tuple1 (Tagged (SProxy "democHash") (BytesN (D3 :& DOne D2)))) LowLevelNewDemoc where
-  isAnonymous _ = false
-
-derive instance genericLowLevelNewDemoc :: Generic LowLevelNewDemoc _
-
-instance eventGenericLowLevelNewDemocShow :: Show LowLevelNewDemoc where
-	show = genericShow
-
-instance eventGenericLowLevelNewDemoceq :: Eq LowLevelNewDemoc where
+instance eventGenericPayoutAlleq :: Eq PayoutAll where
 	eq = genericEq
 
 --------------------------------------------------------------------------------
@@ -763,26 +764,101 @@ instance eventGenericOwnerChangedeq :: Eq OwnerChanged where
 	eq = genericEq
 
 --------------------------------------------------------------------------------
--- | Error
+-- | BallotCreatedWithID
 --------------------------------------------------------------------------------
 
 
-newtype Error = Error {code :: (UIntN (D2 :& D5 :& DOne D6))}
+newtype BallotCreatedWithID = BallotCreatedWithID {ballotId :: (UIntN (D2 :& D5 :& DOne D6))}
 
-derive instance newtypeError :: Newtype Error _
+derive instance newtypeBallotCreatedWithID :: Newtype BallotCreatedWithID _
 
-instance eventFilterError :: EventFilter Error where
+instance eventFilterBallotCreatedWithID :: EventFilter BallotCreatedWithID where
 	eventFilter _ addr = defaultFilter
 		# _address .~ Just addr
-		# _topics .~ Just [Just ( unsafePartial $ fromJust $ mkHexString "2e36a7093f25f22bd4cbdeb6040174c3ba4c5fe8f1abc04e7c3c48f26c7413e0")]
+		# _topics .~ Just [Just ( unsafePartial $ fromJust $ mkHexString "20f1b9a21ee397f1c57261849e4492865559e3da426f13a27e9d3abefafb45ed")]
 
-instance indexedEventError :: IndexedEvent (Tuple0 ) (Tuple1 (Tagged (SProxy "code") (UIntN (D2 :& D5 :& DOne D6)))) Error where
+instance indexedEventBallotCreatedWithID :: IndexedEvent (Tuple0 ) (Tuple1 (Tagged (SProxy "ballotId") (UIntN (D2 :& D5 :& DOne D6)))) BallotCreatedWithID where
   isAnonymous _ = false
 
-derive instance genericError :: Generic Error _
+derive instance genericBallotCreatedWithID :: Generic BallotCreatedWithID _
 
-instance eventGenericErrorShow :: Show Error where
+instance eventGenericBallotCreatedWithIDShow :: Show BallotCreatedWithID where
 	show = genericShow
 
-instance eventGenericErroreq :: Eq Error where
+instance eventGenericBallotCreatedWithIDeq :: Eq BallotCreatedWithID where
+	eq = genericEq
+
+--------------------------------------------------------------------------------
+-- | BBFarmInit
+--------------------------------------------------------------------------------
+
+
+newtype BBFarmInit = BBFarmInit {namespace :: (BytesN (DOne D4))}
+
+derive instance newtypeBBFarmInit :: Newtype BBFarmInit _
+
+instance eventFilterBBFarmInit :: EventFilter BBFarmInit where
+	eventFilter _ addr = defaultFilter
+		# _address .~ Just addr
+		# _topics .~ Just [Just ( unsafePartial $ fromJust $ mkHexString "9efcb9c0754671258cec21b6dce843609343e2240774fedbc3a062d6d79ed0f8")]
+
+instance indexedEventBBFarmInit :: IndexedEvent (Tuple0 ) (Tuple1 (Tagged (SProxy "namespace") (BytesN (DOne D4)))) BBFarmInit where
+  isAnonymous _ = false
+
+derive instance genericBBFarmInit :: Generic BBFarmInit _
+
+instance eventGenericBBFarmInitShow :: Show BBFarmInit where
+	show = genericShow
+
+instance eventGenericBBFarmIniteq :: Eq BBFarmInit where
+	eq = genericEq
+
+--------------------------------------------------------------------------------
+-- | Sponsorship
+--------------------------------------------------------------------------------
+
+
+newtype Sponsorship = Sponsorship {ballotId :: (UIntN (D2 :& D5 :& DOne D6)),value :: (UIntN (D2 :& D5 :& DOne D6))}
+
+derive instance newtypeSponsorship :: Newtype Sponsorship _
+
+instance eventFilterSponsorship :: EventFilter Sponsorship where
+	eventFilter _ addr = defaultFilter
+		# _address .~ Just addr
+		# _topics .~ Just [Just ( unsafePartial $ fromJust $ mkHexString "ed34dd96c912079eb7961c72c52b776c5da4e532cd4dbbf12ce5178654775769")]
+
+instance indexedEventSponsorship :: IndexedEvent (Tuple0 ) (Tuple2 (Tagged (SProxy "ballotId") (UIntN (D2 :& D5 :& DOne D6))) (Tagged (SProxy "value") (UIntN (D2 :& D5 :& DOne D6)))) Sponsorship where
+  isAnonymous _ = false
+
+derive instance genericSponsorship :: Generic Sponsorship _
+
+instance eventGenericSponsorshipShow :: Show Sponsorship where
+	show = genericShow
+
+instance eventGenericSponsorshipeq :: Eq Sponsorship where
+	eq = genericEq
+
+--------------------------------------------------------------------------------
+-- | Vote
+--------------------------------------------------------------------------------
+
+
+newtype Vote = Vote {ballotId :: (UIntN (D2 :& D5 :& DOne D6)),vote :: (BytesN (D3 :& DOne D2)),voter :: Address,extra :: ByteString}
+
+derive instance newtypeVote :: Newtype Vote _
+
+instance eventFilterVote :: EventFilter Vote where
+	eventFilter _ addr = defaultFilter
+		# _address .~ Just addr
+		# _topics .~ Just [Just ( unsafePartial $ fromJust $ mkHexString "c36bca23f7acd356bf53dd9ba26e965997f89db6c92337e3960cbb2c5210199a"),Nothing]
+
+instance indexedEventVote :: IndexedEvent (Tuple1 (Tagged (SProxy "ballotId") (UIntN (D2 :& D5 :& DOne D6)))) (Tuple3 (Tagged (SProxy "vote") (BytesN (D3 :& DOne D2))) (Tagged (SProxy "voter") Address) (Tagged (SProxy "extra") ByteString)) Vote where
+  isAnonymous _ = false
+
+derive instance genericVote :: Generic Vote _
+
+instance eventGenericVoteShow :: Show Vote where
+	show = genericShow
+
+instance eventGenericVoteeq :: Eq Vote where
 	eq = genericEq

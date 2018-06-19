@@ -14,29 +14,28 @@ mkdir -p _autogen/sv-light-contracts
 cd _autogen/sv-light-contracts
 
 if [ -e .git ]; then
-    git pull origin master
+    git stash && git pull origin master
 else
     git clone https://github.com/secure-vote/sv-light-smart-contracts . --depth=10
 fi
+yarn compile-sv-light
 
 cd ../..
 
+rm -rf ./tmpSolDist
 mkdir -p tmpSolDist
-rm ./tmpSolDist/* || true
 
 log "Coping ABIs to tmp directory for processing"
-for file in ./_autogen/sv-light-contracts/_solDist/*.abi; do
-    if [[ $(basename "$file") =~ ^[A-Z] ]]; then
-        echo "copying $file"
-        cp "$file" "./tmpSolDist/$(basename "$file" .abi).json"
-    else
-        echo "skipping $file"
-    fi
-done
 
-cp ./_autogen/sv-light-contracts/archive/swm-v2/SVLightBallotBox.abi ./tmpSolDist/BallotBoxVersion2.json
+copySolFile(){
+    file=$(echo "$1" | sed "s/\.abi$//g").abi
+    echo "copying $file"
+    cp "./_autogen/sv-light-contracts/_solDist/$file" "./tmpSolDist/$(basename "$file" .abi).json"
+}
 
-# ls ./tmpSolDist
+copySolFile BBFarm
+# copySolFile SVDelegation
+copySolFile SVDelegationV0101
 
 rm ./src/SecureVote/Contracts/* || true
 
@@ -52,4 +51,3 @@ rm generator.js
 rm -r tmpSolDist
 
 log "Done"
-

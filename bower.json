@@ -38,15 +38,20 @@
     "purescript-simple-json": "^2.0.1",
     "purescript-record-show": "^0.4.0",
     "purescript-affjax": "^5.0.0",
-    "purescript-web3": "^0.22.0",
-    "purescript-web3-generator": "^0.21.1",
-    "purescript-monad-loops": "^0.4.0"
+    "purescript-monad-loops": "^0.4.0",
+    "purescript-web3": "^0.24.0",
+    "purescript-web3-generator": "^0.23.0"
   },
   "devDependencies": {
     "purescript-psci-support": "^3.0.0",
     "purescript-spec": "^2.0.0"
   },
   "resolutions": {
-    "purescript-arraybuffer-types": "^2.0.0"
+    "purescript-arraybuffer-types": "^2.0.0",
+    "purescript-transformers": "^3.6.0",
+    "purescript-foreign-generic": "^6.0.0",
+    "purescript-aff": "^4.1.0",
+    "purescript-simple-json": "^3.0.0",
+    "purescript-eth-core": "^v2.0.0"
   }
 }
