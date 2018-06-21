@@ -119,7 +119,7 @@ getBallotSpec h = do
 
 
 runBallotCount :: RunBallotArgs -> (_ -> Unit) -> ExceptT String (Aff _) BallotResult
-runBallotCount {bInfo, bSpec, bbFarmTos, ercTos, dlgtTos, silent, dev} updateF = do
+runBallotCount {bInfo, bSpec, bbFarmTos, ercTos, dlgtTos, silent, netId, dev} updateF = do
     nowTime <- lift $ liftEff $ round <$> currentTimestamp
     -- todo: use ballotInfo start and end times (from SC)
     let endTime = bSpec ^. _endTime
@@ -231,7 +231,7 @@ runBallotCount {bInfo, bSpec, bbFarmTos, ercTos, dlgtTos, silent, dev} updateF =
     logDelegates = pure <<< updateF <<< spyDev <<< mkSUDlgts
 
     spyDev :: forall a. a -> a
-    spyDev a = if dev then spy a else a
+    spyDev a = if netId == "42" then spy a else a
 
     logDev str = if dev then log str else pure unit
 

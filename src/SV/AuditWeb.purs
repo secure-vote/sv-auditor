@@ -1,4 +1,4 @@
-module SV.AuditWeb (main, devArgs) where
+module SV.AuditWeb (main, testArgs, version) where
 
 import SV.Prelude
 
@@ -12,21 +12,28 @@ import Data.StrMap as SMap
 import Data.StrMap as StrMap
 import Global.Unsafe (unsafeStringify)
 import Network.Ethereum.Core.BigNumber (BigNumber)
-import Network.Ethereum.Core.Signatures (Address)
+import Network.Ethereum.Core.HexString (mkHexString)
+import Network.Ethereum.Core.Signatures (Address, mkAddress)
+import Partial.Unsafe (unsafePartial)
 import SV.Light.AuditApp (app, AppArgs)
 import SV.Types.OutboundLogs (SUAux(..), OutAllDeets)
 import SV.Utils.BigNumber (bnToStr)
 import Simple.JSON (write, writeJSON)
 
 
-devArgs =
+sToAddrUnsafe = unsafePartial fromJust <<< (mkAddress <=< mkHexString)
+
+testArgs =
     { ethUrls: StrMap.fromFoldable [Tuple "1" "https://mainnet.eth.secure.vote/auditorDevArgs", Tuple "42" "https://kovan.eth.secure.vote/auditorDevArgs"]
     , indexEns: "index-v1.kov.sv"
     , startingNetwork: "42"
-    , ensDetails: StrMap.empty
-    , ballotId: "0x00000001dd74d84a29c8888d880a1c010b00c8808e473b32e646f553e79133b8"
+    , ensDetails: StrMap.fromFoldable [Tuple "1" (sToAddrUnsafe "0x314159265dD8dbb310642f98f50C066173C1259b"), Tuple "42" (sToAddrUnsafe "0xd6F4f22eeC158c434b17d01f62f5dF33b108Ae93")]
+    , ballotId: "50282030322211705750201517969034130535463358470884956019831293948856"
     , dev: true
     }
+
+
+version = "2.0.0"
 
 
 main :: forall a e eff. AppArgs -> (J.Json -> Unit) -> Eff _ Unit

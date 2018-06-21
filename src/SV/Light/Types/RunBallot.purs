@@ -19,7 +19,7 @@ type BallotResult = {nVotes :: Int, ballotResults :: Array BallotStrOptResult}
 type GetVoteResult = {origVoter :: Address, ballot :: BallotFromSC, bal :: BigNumber}
 
 type TxOpts = TransactionOptions NoPay
-type RunBallotArgs = {bInfo :: BallotInfo, bSpec :: BallotSpec, bbFarmTos :: TxOpts, ercTos :: TxOpts, dlgtTos :: TxOpts, silent :: Boolean, dev :: Boolean}
+type RunBallotArgs = {bInfo :: BallotInfo, bSpec :: BallotSpec, bbFarmTos :: TxOpts, ercTos :: TxOpts, dlgtTos :: TxOpts, silent :: Boolean, netId :: String, dev :: Boolean}
 
 
 type BallotInfo =
