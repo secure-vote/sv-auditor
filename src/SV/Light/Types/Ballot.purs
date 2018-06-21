@@ -54,6 +54,7 @@ type BSpec01Impl =
 data OptsOuter
     = OptsSimple SimpleVer (Array SimpleOption)
     | OptsBinary
+    | OptsPetition
 
 
 derive instance eqOptsOuter :: Eq OptsOuter
@@ -62,6 +63,7 @@ instance showOptsOuter :: Show OptsOuter where
         OptsBinary -> "OptsBinary"
         OptsSimple v os -> (\s -> "( OptsSimple " <> s <> " )") $ case v of
             RangeVotingPlusMinus3 -> "RangeVotingPlusMinus3 ( " <> show (showSimpleOpt <$> os) <> " )"
+        OptsPetition -> "OptsPetition"
 
 
 optsNOptions :: OptsOuter -> Int
@@ -69,11 +71,13 @@ optsNOptions os =
     case os of
         OptsSimple RangeVotingPlusMinus3 xs -> length xs
         OptsBinary -> 1
+        OptsPetition -> 1
 
 
 data OptsChoice
     = OChSimpleRange
     | OChBinary
+    | OChPetition
 
 
 oChoiceToStr :: OptsChoice -> String
@@ -81,6 +85,7 @@ oChoiceToStr o =
     case o of
         OChSimpleRange -> "Range Voting"
         OChBinary -> "Binary Yes/No"
+        OChPetition -> "Petition"
 
 
 newtype SimpleOption = SimpleOption
@@ -125,13 +130,16 @@ instance readFOptsOuter :: ReadForeign OptsOuter where
         (s1 :: ReadOptsOuterStage1) <- read' a
         case s1.optionsVersion of
             1 -> opt01Conv =<< read' =<< (fromMaybe (mkFErr "OptionsV01 expected SimpleOptions but got Nothing") (pure <$> s1.options))
-            2 -> if isJust s1.options then mkFErr $ "Options Binary expected nothing for `options` but got: " <> unsafeStringify s1.options else pure (opt02Conv s1)
+            2 -> reqNothing s1.options *> pure (opt02Conv s1)
+            3 -> reqNothing s1.options *> pure (opt03Conv s1)
             _ -> mkFErr $ "Invalid Options in BallotSpec: " <> unsafeStringify s1.options
       where
         opt01Conv options = do
             opts :: Array SimpleOption <- read' options
             pure $ OptsSimple RangeVotingPlusMinus3 opts
         opt02Conv o = OptsBinary
+        opt03Conv o = OptsPetition
+        reqNothing m = fromMaybe (mkFErr $ "Expected nothing for `options` but got: " <> unsafeStringify m) (pure <$> m)
 
 
 instance readSimpleOption :: ReadForeign SimpleOption where

@@ -52,7 +52,7 @@ import Node.Buffer (BUFFER)
 import Node.Buffer as Buffer
 import Node.Encoding (Encoding(..))
 import Partial.Unsafe (unsafePartial)
-import SV.Light.Counts (countBinary, countRange, RangeOffset(..))
+import SV.Light.Counts (countBinary, countRange, countPetition, RangeOffset(..))
 import SV.Light.Delegation (getDelegates)
 import SV.Light.IPFS (getBlock)
 import SV.Light.SCs.BBFarmHelpers (specHash)
@@ -418,3 +418,4 @@ getResults ballotOpts weightedBallots = case ballotOpts of
         OptsBinary -> countBinary weightedBallots
         OptsSimple simpleType opts -> case simpleType of
             RangeVotingPlusMinus3 -> countRange (RangePlusMinus {magnitude: 3}) opts weightedBallots
+        OptsPetition -> countPetition weightedBallots
