@@ -27,8 +27,11 @@ kovanDlgtAddr :: Address
 kovanDlgtAddr = unsafePartial fromJust $ mkAddress =<< mkHexString "0x8F6F18b9A83E0b42cE69783a8282441BF8F417fc"
 
 
-dlgtAddr :: {dev :: Boolean} -> Address
-dlgtAddr {dev} = if dev then kovanDlgtAddr else mainnetDlgtAddr
+dlgtAddr :: String -> Address
+dlgtAddr net = case net of
+  "1" -> mainnetDlgtAddr
+  "42" -> kovanDlgtAddr
+  _ -> mainnetDlgtAddr
 
 
 procResDlgtion :: (Tuple6 _ _ _ Address Address Address) -> {delegator :: Address, delegatee :: Address, token :: Address}
