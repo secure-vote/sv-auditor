@@ -41,9 +41,9 @@ import IPFS (IPFSEff)
 import Network.Ethereum.Core.BigNumber (pow, unsafeToInt)
 import Network.Ethereum.Core.BigNumber as BN
 import Network.Ethereum.Core.HexString (dropHex)
-import Network.Ethereum.Web3 (type (:&), Address, BigNumber, Block(..), CallError, ChainCursor(..), D2, D5, D6, DLProxy(..), DOne, ETH, HexString, TransactionOptions, UIntN, _to, defaultTransactionOptions, embed, mkAddress, mkHexString, uIntNFromBigNumber, unHex, unUIntN)
+import Network.Ethereum.Web3 (type (:&), Address, BigNumber, Block(..), CallError, ChainCursor(..), D2, D5, D6, DLProxy(..), DOne, ETH, HexString, TransactionOptions, UIntN, _to, defaultTransactionOptions, embed, mkAddress, mkHexString, uIntNFromBigNumber, unAddress, unHex, unUIntN)
 import Network.Ethereum.Web3.Api (eth_blockNumber, eth_getBlockByNumber)
-import Network.Ethereum.Web3.Solidity (Tuple3(..))
+import Network.Ethereum.Web3.Solidity (Tuple10(..), Tuple3(..))
 import Network.Ethereum.Web3.Solidity.Size (class KnownSize)
 import Network.Ethereum.Web3.Types (Web3)
 import Network.HTTP.Affjax (AJAX, get)
@@ -55,38 +55,40 @@ import Partial.Unsafe (unsafePartial)
 import SV.Light.Counts (countBinary, countRange, RangeOffset(..))
 import SV.Light.Delegation (getDelegates)
 import SV.Light.IPFS (getBlock)
-import SV.Light.Types.BallotBox (determineBallotVersion)
-import SV.Light.Types.Eth (UInt256, uint256Px)
+import SV.Light.SCs.BBFarmHelpers (specHash)
+import SV.Light.Types.Eth (UInt256, SCLocation, uint256Px)
 import SV.Types.OutboundLogs (mkSUBal, mkSUDlgts, mkSUFail, mkSULog, mkSUWarn)
 import SV.Utils.BigNumber (bnToDec)
+import SecureVote.Contracts.BBFarm (getDetails, getVote)
 import SecureVote.Contracts.FakeErc20 (balanceOf, decimals)
-import SecureVote.Contracts.SVLightBallotBox (ballotEncryptionSeckey, ballotMap, creationBlock, curve25519Pubkeys, endTime, getEncSeckey, nVotesCast, specHash, startTime, startingBlockAround)
 import SecureVote.Utils.Array (chunk, fromList, onlyJust)
 import SecureVote.Utils.IPFS (hexHashToSha256Bs58)
 import SecureVote.Utils.Time (currentTimestamp)
 import SecureVote.Utils.Web3Bin (bytesNToHex)
-import SecureVote.Web3.Web3 (runWeb3_, zeroHash)
+import SecureVote.Web3.Web3 (runWeb3_, zeroAddr, zeroHash)
 import Simple.JSON (readJSON')
 
 
-getBallotInfo :: forall e. {bScAddr :: Address} -> Aff (eth :: ETH, ref :: REF | e) BallotInfo
-getBallotInfo {bScAddr} = do
-    sequential $
-        mkBallotInfo <$> (map bytesNToHex $ pw3 $ specHash tos Latest)
-                     <*> (map uintToInt $ pw3 $ startTime tos Latest)
-                     <*> (map uintToInt $ pw3 $ endTime tos Latest)
-                     <*> (map (skCheck <<< bytesNToHex) $ pw3 $ ballotEncryptionSeckey tos Latest)
-                     <*> (map uintToInt $ pw3 $ nVotesCast tos Latest)
-                     <*> (map uintToInt $ pw3 $ creationBlock tos Latest)
-                     <*> (parallel $ determineBallotVersion bScAddr)
+getBallotInfo :: forall e. {bbFarmLoc :: SCLocation, ballotId :: UInt256} -> Aff (eth :: ETH | Web3Effs e) BallotInfo
+getBallotInfo {bbFarmLoc, ballotId} = do
+    rawToBallotInfo <$> (w3 $ getDetails tos Latest {ballotId, voter: zeroAddr})
   where
-    pw3 :: forall e2 a. Web3 (ref :: REF | e2) (Either CallError a) -> ParAff (eth :: ETH, ref :: REF | e2) a
-    pw3 = parallel <<< (eToAff <=< eToAff <=< runWeb3_)
+    w3 :: forall e2 a. Web3 _ (Either CallError a) -> Aff _ a
+    w3 = (eToAff <=< eToAff <=< runWeb3_)
     -- transaction options
-    tos = defaultTransactionOptions # _to .~ Just bScAddr
+    tos = defaultTransactionOptions # _to .~ Just bbFarmLoc.address
     uintToInt :: forall m a n. KnownSize n => UIntN n -> Int
     uintToInt = unsafeToInt <<< unUIntN
     skCheck a = if a == zeroHash then Nothing else Just a
+
+    rawToBallotInfo (Tuple10 hasVoted nVotesCast secKey subBits startTime endTime specHash deprecated ballotOwner extraData) =
+        mkBallotInfo
+            ballotId
+            (bytesNToHex specHash)
+            (uintToInt startTime)
+            (uintToInt endTime)
+            (skCheck <<< bytesNToHex $ secKey)
+            (uintToInt nVotesCast)
 
 
 getBallotSpec :: forall e. HexString -> Aff (ref :: REF, ipfs :: IPFSEff, buffer :: BUFFER, ajax :: AJAX | e) BallotSpec
@@ -117,7 +119,7 @@ getBallotSpec h = do
 
 
 runBallotCount :: RunBallotArgs -> (_ -> Unit) -> ExceptT String (Aff _) BallotResult
-runBallotCount {bInfo, bSpec, bbTos, ercTos, dlgtTos, silent, dev} updateF = do
+runBallotCount {bInfo, bSpec, bbFarmTos, ercTos, dlgtTos, silent, dev} updateF = do
     nowTime <- lift $ liftEff $ round <$> currentTimestamp
     -- todo: use ballotInfo start and end times (from SC)
     let endTime = bSpec ^. _endTime
@@ -136,20 +138,22 @@ runBallotCount {bInfo, bSpec, bbTos, ercTos, dlgtTos, silent, dev} updateF = do
 
     -- check that we can proceed
     let encPkM = bSpec ^. _encryptionPK
-    secKey <- bytesNToHex <$> w3BB getEncSeckey Latest
-    case (Tuple (nowTime < endTime) (isNothing encPkM || secKey /= zeroHash)) of
+        secKey = bInfo.encSecKey
+    case (Tuple (nowTime < endTime) (isNothing encPkM)) of
         Tuple true true -> warn "Ballot has not ended, determining live results and using current delegations..."
         Tuple true false -> throwError "Error: The ballot has ended but I cannot determine the results due as the secret key has not been released"
         _ -> pure unit
 
-    if secKey /= zeroHash then log $ "The ballot encryption secret key is " <> show zeroHash else log "Ballot is not encrypted, proceeding..."
+    case secKey of
+        Nothing -> log "Ballot is not encrypted, proceeding..."
+        Just sk -> log $ "The ballot encryption secret key is " <> show sk
 
-    nVotes <- (unsafeToInt <<< unUIntN) <$> w3BB nVotesCast Latest
+    let nVotes = bInfo.nVotesCast
     log $ "Ballot smart contract reports " <> show nVotes <> " were cast."
 
     log "Retrieving votes now. This may take some time."
     ballotProgress <- lift $ makeVar 0
-    rawBallotsWDupes <- lift $ getBallots bbSC nVotes (incrementBallotProgress nVotes logAff ballotProgress)
+    rawBallotsWDupes <- lift $ getBallots bbSC bInfo (incrementBallotProgress nVotes logAff ballotProgress)
     log $ "Retrieved " <> (show $ Arr.length rawBallotsWDupes) <> " votes"
 
     rawBallotsNoDupes <- removeDupes rawBallotsWDupes
@@ -200,13 +204,13 @@ runBallotCount {bInfo, bSpec, bbTos, ercTos, dlgtTos, silent, dev} updateF = do
     pure {nVotes, ballotResults}
   where
     w3BB :: forall a b. (TransactionOptions _ -> b -> Web3 _ (Either CallError a)) -> b -> ExceptT String (Aff _) a
-    w3BB r = w3Gen r bbTos
+    w3BB r = w3Gen r bbFarmTos
     w3Erc r = w3Gen r ercTos
     w3Gen :: forall a b. (TransactionOptions _ -> b -> Web3 _ (Either CallError a)) -> TransactionOptions _ -> b -> ExceptT String (Aff _) a
     w3Gen r tos = convE <<< lift <<< (eToAff <=< runWeb3_) <<< r tos
 
     bbSC :: forall args e a. SmartContract e args a
-    bbSC = genericSC bbTos
+    bbSC = genericSC bbFarmTos
 
     ercSC :: forall args e a. SmartContract e args a
     ercSC = genericSC ercTos
@@ -269,25 +273,25 @@ incrementBallotProgress totalBallots log avar = do
 
 
 -- | Get ballots from SC
-getBallots :: forall e m. (forall args a. SmartContract _ args a) -> Int -> Aff _ Unit -> Aff _ (Array BallotFromSC)
-getBallots bbSC n incBallotProgress
-    | n <= 0 = pure []
+getBallots :: forall e m. (forall args a. SmartContract _ args a) -> BallotInfo -> Aff _ Unit -> Aff _ (Array BallotFromSC)
+getBallots bbSC {ballotId, nVotesCast} incBallotProgress
+    | nVotesCast <= 0 = pure []
     | otherwise = do
-        let allVoteIds = range 0 (n-1)
+        let allVoteIds = range 0 (nVotesCast-1)
         let (chunks :: Array (Array Int)) = chunk 25 allVoteIds
         let (toPar :: Array (Aff _ (Array BallotFromSC))) = (parTraverse getBallot) <$> chunks
         map concat $ sequence $ toPar
     where
         getBallot i = do
             ballotN <- mToAff ("Unable to convert " <> show i <> " to uint256!") $ uIntNFromBigNumber uint256Px $ embed i
-            -- TODO: handle versioning between swm-v2 and sv-light BBs
-            (Tuple3 ballotBytesN voterID blockNumberUint) <- bbSC ballotMap Latest ballotN
-            voterPk <- bytesNToHex <$> bbSC curve25519Pubkeys Latest ballotN
+            -- TODO: should we use a chaincursor based on endTime here instead of latest?
+            (Tuple3 ballotBytesN voterAddr extraData) <- bbSC getVote Latest {ballotId, voteId: ballotN}
+            -- TODO: support voterPks for encrypted ballots
+            -- voterPk <- bytesNToHex <$> bbSC curve25519Pubkeys Latest ballotN
             let ballot = bytesNToHex ballotBytesN
                 -- TODO: handle SV ID case (non-ethereum sending addresses)
-                voterAddr = unsafePartial fromJust $ mkAddress $ dropHex 24 $ bytesNToHex voterID
             incBallotProgress
-            pure $ {i, ballot, voterPk, voterAddr}
+            pure $ {i, ballot, voterPk: zeroHash, voterAddr}
 
 
 -- todo, this is going to be slow -- might be much faster to reverse the array...
@@ -319,7 +323,7 @@ removeDupes ballots = do
 
 
 -- | Get balances
-getBalances :: forall m e. SmartContract e {_owner :: Address} UInt256 -> Int -> Array Address -> Aff (eth :: ETH, ref :: REF | e) BalanceMap
+getBalances :: forall m e. SmartContract e {_owner :: Address} UInt256 -> Int -> Array Address -> Aff (eth :: ETH | Web3Effs e) BalanceMap
 getBalances w3Erc blockNumber ballots = do
         pairs <- parTraverse addBalance ballots
         pure $ fromFoldable pairs

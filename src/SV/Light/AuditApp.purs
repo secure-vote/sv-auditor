@@ -22,17 +22,27 @@ import Data.Lens ((.~), (^.))
 import Data.Map (lookup)
 import Data.Map as Map
 import Data.Maybe (Maybe(..), fromMaybe, maybe)
+import Data.StrMap (StrMap)
 import Data.StrMap as StrMap
 import Data.String as String
 import Data.Tuple (Tuple(..))
-import Network.Ethereum.Web3 (_to, defaultTransactionOptions, mkAddress, mkHexString)
+import Network.Ethereum.Core.BigNumber (parseBigNumber)
+import Network.Ethereum.Core.HexString (toBigNumber)
+import Network.Ethereum.Core.Signatures (mkAddress)
+import Network.Ethereum.Web3 (Address, ChainCursor(..), DLProxy(..), _to, defaultTransactionOptions, embed, mkAddress, mkHexString, uIntNFromBigNumber)
 import Network.Ethereum.Web3 as BN
 import Node.Process (PROCESS)
+import Partial.Unsafe (unsafePartial)
 import SV.Light.AuditBallot (getBallotInfo, getBallotSpec, runBallotCount)
 import SV.Light.Delegation (dlgtAddr)
+import SV.Light.SCs.ENS (lookupEns)
+import SV.Light.SmartContracts (mkTos, runWeb3OrThrow)
+import SV.Light.Types.ENS (EnsDetails)
 import SV.Types.Lenses (_erc20Addr)
 import SV.Types.OutboundLogs (StatusUpdate, mkSUFail, mkSULog, mkSUSuccess)
 import SV.Utils.BigNumber (bnToStr)
+import SV.Utils.UInt (uintFromInt)
+import SecureVote.Contracts.SVIndex (getBBFarm)
 import SecureVote.Democs.SwarmMVP.BallotContract (AllDetails, BallotResult, findEthBlockEndingInZeroBefore, noArgs)
 import SecureVote.Democs.SwarmMVP.Types (swmBallotShowJustVotes)
 import SecureVote.Utils.Array (fromList)
@@ -72,7 +82,15 @@ formatAllDeets {encBallotsWithoutDupes, decryptedBallots, delegateMapNoLoops, ba
             voters = fromList $ Map.keys balanceMap
 
 
-type AppArgs = {ethUrl :: String, bScAddr :: String, dev :: Boolean}
+
+type AppArgs = {ethUrls :: StrMap String, indexEns :: String, startingNetwork :: String, ensDetails :: EnsDetails, ballotId :: String, dev :: Boolean}
+
+
+getEnsAddr :: String -> Maybe Address
+getEnsAddr net = case net of
+    "1" -> mkAddress =<< mkHexString "0x314159265dD8dbb310642f98f50C066173C1259b"
+    "42" -> mkAddress =<< mkHexString "0xd6F4f22eeC158c434b17d01f62f5dF33b108Ae93"
+    _ -> Nothing
 
 
 -- | Main app function for Auditor. Accepts record of parameters needed to audit ballot.
@@ -80,18 +98,29 @@ app :: forall eff.
        AppArgs ->
        (StatusUpdate -> Unit) ->
        Aff _ _ -- (Either (Tuple Int String) (Tuple Int BallotResult))
-app {ethUrl, bScAddr, dev} updateF =
+app params@{ethUrls, indexEns, startingNetwork, ensDetails, dev} updateF =
     do
-        if dev then log "-- DEV MODE --" else pure unit
-        liftEff $ setProvider ethUrl
-        addr <- mToAff "Unable to get BallotBox SC address" $ mkAddress =<< mkHexString bScAddr
-        bInfo <- getBallotInfo {bScAddr: addr}
+        if startingNetwork == "42" then log "-- DEV MODE (Kovan) --" else pure unit
+        let providerUrl = fromMaybe "" $ StrMap.lookup startingNetwork ethUrls
+        liftEff $ setProvider providerUrl
+
+        -- TODO: handle ENS properly
+        ensAddr :: Address <- mToAff "Unable to get the ENS Register address" $ getEnsAddr startingNetwork
+        indexAddr <- lookupEns indexEns {network: startingNetwork, address: ensAddr}
+        log $ "got index addr: " <> show indexAddr
+        -- TODO: handle bbfarms other than 0
+        bbFarmAddr <- runWeb3OrThrow $ getBBFarm (mkTos indexAddr) Latest {bbFarmId: (uintFromInt 0)}
+
+        -- TODO: handle bad ballotId
+        let ballotId = unsafePartial fromJust $ uIntNFromBigNumber DLProxy <<< toBigNumber =<< mkHexString params.ballotId
+            bbFarmLoc = {network: startingNetwork, address: bbFarmAddr}
+        bInfo <- getBallotInfo {ballotId, bbFarmLoc}
         bSpec <- getBallotSpec bInfo.bHash
-        let bbTos = defaultTransactionOptions # _to .~ Just addr
+        let bbFarmTos = defaultTransactionOptions # _to .~ Just bbFarmAddr
             ercTos = defaultTransactionOptions # _to .~ Just (bSpec ^. _erc20Addr)
             dlgtTos = defaultTransactionOptions # _to .~ Just (dlgtAddr {dev})
 
-        ballotAns <- runExceptT $ runBallotCount {bInfo, bSpec, bbTos, ercTos, dlgtTos, silent: false, dev} updateF
+        ballotAns <- runExceptT $ runBallotCount {bInfo, bSpec, bbFarmTos, ercTos, dlgtTos, silent: false, dev} updateF
 
         let exitC = exitCode ballotAns
         let msgStart = exitMsgHeader exitC

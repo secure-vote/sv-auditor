@@ -33,9 +33,16 @@ copySolFile(){
     cp "./_autogen/sv-light-contracts/_solDist/$file" "./tmpSolDist/$(basename "$file" .abi).json"
 }
 
+copySolFile ENSIface
+copySolFile PublicResolver
 copySolFile BBFarm
 # copySolFile SVDelegation
 copySolFile SVDelegationV0101
+copySolFile FakeErc20
+copySolFile SVIndex
+copySolFile SVIndexBackend
+copySolFile SVPayments
+
 
 rm ./src/SecureVote/Contracts/* || true
 

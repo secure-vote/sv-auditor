@@ -1,4 +1,4 @@
-module SV.AuditWeb (main) where
+module SV.AuditWeb (main, devArgs) where
 
 import SV.Prelude
 
@@ -6,10 +6,10 @@ import Control.Monad.Aff (launchAff_, message)
 import Control.Monad.Aff.Console as AffC
 import Control.Monad.Error.Class (catchError)
 import Data.Argonaut.Core as J
-import Data.Argonaut.Core as J
 import Data.Int (toNumber)
 import Data.Map (Map, toUnfoldable)
 import Data.StrMap as SMap
+import Data.StrMap as StrMap
 import Global.Unsafe (unsafeStringify)
 import Network.Ethereum.Core.BigNumber (BigNumber)
 import Network.Ethereum.Core.Signatures (Address)
@@ -17,6 +17,16 @@ import SV.Light.AuditApp (app, AppArgs)
 import SV.Types.OutboundLogs (SUAux(..), OutAllDeets)
 import SV.Utils.BigNumber (bnToStr)
 import Simple.JSON (write, writeJSON)
+
+
+devArgs =
+    { ethUrls: StrMap.fromFoldable [Tuple "1" "https://mainnet.eth.secure.vote/auditorDevArgs", Tuple "42" "https://kovan.eth.secure.vote/auditorDevArgs"]
+    , indexEns: "index-v1.kov.sv"
+    , startingNetwork: "42"
+    , ensDetails: StrMap.empty
+    , ballotId: "0x00000001dd74d84a29c8888d880a1c010b00c8808e473b32e646f553e79133b8"
+    , dev: true
+    }
 
 
 main :: forall a e eff. AppArgs -> (J.Json -> Unit) -> Eff _ Unit

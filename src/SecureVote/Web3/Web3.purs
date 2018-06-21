@@ -121,9 +121,9 @@ web3SlotDone = do
 runWeb3_ :: forall e eff a. Web3 _ a -> Aff _ (Either Web3Error a)
 runWeb3_ w3r = do
     net <- liftEff $ readRef _svNetVar
-    awaitWeb3Slot
+    -- awaitWeb3Slot
     resp <- go net 0
-    web3SlotDone
+    -- web3SlotDone
     pure resp
   where
     go net n = do
