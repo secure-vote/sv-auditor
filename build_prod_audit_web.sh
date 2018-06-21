@@ -4,7 +4,7 @@
 # netlify sample: > added 1 package and removed 507 packages in 6.684s
 yarn install
 
-if [ -n "$BRANCH" ]; then 
+if [ -n "$BRANCH" ] && [ "$BRANCH" -eq "master" ]; then 
   bower cache clean
   rm -rf bower_components
   bower install
