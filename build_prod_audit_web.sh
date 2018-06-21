@@ -13,10 +13,14 @@ if [ -n "$BRANCH" ] && [ "$BRANCH" -eq "master" ]; then
 fi
 
 if [ -d "$OUTPUT_CACHE" ]; then
+  echo "\n\n## COPYING ./output CACHE ##"
   cp -a "$OUTPUT_CACHE" ./output
+  du -h ./output | tail -n 1
+  echo -e "\n\n"
 fi
 
 yarn audit-prod-web
 
+echo -e "\n\n## Caching ./output ##\n\n"
 rm -rf "$OUTPUT_CACHE"
 cp -a ./output "$OUTPUT_CACHE"
