@@ -115,7 +115,10 @@ app params@{ethUrls, indexEns, startingNetwork, ensDetails} updateF =
         log $ "got index addr: " <> show indexAddr
         ballotId <- mToAff ("Cannot parse ballotId to uint256: " <> params.ballotId) $ uIntNFromBigNumber uint256Px =<< parseBigNumber decimal params.ballotId
         log $ "got ballotId: " <> show ballotId
-        (bbNamespace :: Bytes4) <- mToAff ("Cannot get namespace (bytes4) from ballotId: " <> show ballotId) $ hexToBytesN $ takeHex 4 $ Hex.padLeft $ toHexString $ unUIntN ballotId
+        let ballotIdHex = Hex.padLeft $ toHexString $ unUIntN ballotId
+        log $ "ballotId as hex: " <> show ballotIdHex
+        log $ "ballotId first 4 bytes as hex: " <> show (takeHex 4 $ ballotIdHex)
+        (bbNamespace :: Bytes4) <- mToAff ("Cannot get namespace (bytes4) from ballotId: " <> show ballotId) $ hexToBytesN $ takeHex 8 $ ballotIdHex
         log $ "got bbNamespace: " <> show bbNamespace
         let ixTos = mkTos indexAddr
         bbFarmId <- runWeb3OrThrow $ getBBFarmID ixTos Latest {bbNamespace}
