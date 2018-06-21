@@ -1,6 +1,6 @@
 {
   "name": "sv-auditor",
-  "version": "0.1.0",
+  "version": "2.0.0",
   "description": "Auditor for SecureVote Light",
   "main": "index.js",
   "repository": "git@github.com/secure-vote/sv-auditor",
