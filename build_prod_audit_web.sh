@@ -4,5 +4,11 @@
 # netlify sample: > added 1 package and removed 507 packages in 6.684s
 yarn install
 
+if [ -n "$BRANCH" ]; then 
+  bower cache clean
+  rm -rf bower_components
+  bower install
+fi
+
 yarn audit-prod-web
 
