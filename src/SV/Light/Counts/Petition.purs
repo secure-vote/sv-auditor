@@ -35,7 +35,7 @@ countPetition weightedBallots =
         nVotesNo = getNVotes revokeBallot
         invalidNVotes = Arr.length weightedBallots - nVotesYes - nVotesNo
     in
-    [ {name: "yes", count: countYes, nVotes: nVotesYes}
-    , {name: "no", count: countNo, nVotes: nVotesNo}
+    [ {name: "signed", count: countYes, nVotes: nVotesYes}
+    , {name: "revoked", count: countNo, nVotes: nVotesNo}
     , {name: "invalid", count: invalidCount, nVotes: invalidNVotes}
     ]
