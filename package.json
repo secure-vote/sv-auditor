@@ -35,7 +35,6 @@
     "rlp": "^2.0.0",
     "sanctuary": "^0.13.2",
     "secp256k1": "^3.5.0",
-    "sodium": "^2.0.3",
     "spawn-sync": "^1.0.15",
     "text-encoding": "^0.6.4",
     "try-thread-sleep": "^1.0.2",
@@ -43,6 +42,9 @@
   },
   "devDependencies": {
     "browserify-shim": "^3.8.14"
+  },
+  "optionalDependencies": {
+    "sodium": "^2.0.3"
   },
   "scripts": {
     "----- PureScript (Aduit + Admin)": "",
