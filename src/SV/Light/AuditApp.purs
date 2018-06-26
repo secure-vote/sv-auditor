@@ -2,8 +2,8 @@ module SV.Light.AuditApp where
 
 import SV.Prelude
 
-import Control.Monad.Aff (Aff, throwError, error)
-import Control.Monad.Aff.Console (log)
+import Control.Monad.Aff (Aff, error, sequential, throwError)
+import Control.Monad.Aff.Console (log, warn)
 import Control.Monad.Eff (Eff)
 import Control.Monad.Eff.AVar (AVAR)
 import Control.Monad.Eff.Class (liftEff)
@@ -11,6 +11,7 @@ import Control.Monad.Eff.Console (CONSOLE)
 import Control.Monad.Eff.Exception (EXCEPTION)
 import Control.Monad.Eff.Now (NOW)
 import Control.Monad.Except (runExceptT)
+import Control.Parallel (parallel)
 import Crypt.NaCl (NACL_RANDOM)
 import Data.Array (foldr, (:))
 import Data.Array as A
@@ -40,11 +41,12 @@ import SV.Light.SCs.ENS (lookupEns)
 import SV.Light.SmartContracts (mkTos, runWeb3OrThrow)
 import SV.Light.Types.ENS (EnsDetails)
 import SV.Light.Types.Eth (Bytes4, uint256Px)
-import SV.Types.Lenses (_erc20Addr)
-import SV.Types.OutboundLogs (StatusUpdate, mkSUFail, mkSULog, mkSUSuccess)
+import SV.Types.Lenses (_erc20Addr, getBSpecVer)
+import SV.Types.OutboundLogs (StatusUpdate, mkSUFail, mkSULog, mkSUSuccess, mkSUWarn)
 import SV.Utils.BigNumber (bnToStr)
 import SV.Utils.UInt (uintFromInt)
-import SecureVote.Contracts.SVIndex (getBBFarm, getBBFarmID)
+import SecureVote.Contracts.SVIndex (getBBFarm, getBBFarmID, getBackend)
+import SecureVote.Contracts.SVIndexBackend (getDErc20)
 import SecureVote.Democs.SwarmMVP.BallotContract (AllDetails, BallotResult, findEthBlockEndingInZeroBefore, noArgs)
 import SecureVote.Democs.SwarmMVP.Types (swmBallotShowJustVotes)
 import SecureVote.Utils.Array (fromList)
@@ -86,7 +88,13 @@ formatAllDeets {encBallotsWithoutDupes, decryptedBallots, delegateMapNoLoops, ba
 
 
 
-type AppArgs = {ethUrls :: StrMap String, indexEns :: String, startingNetwork :: String, ensDetails :: EnsDetails, ballotId :: String, dev :: Boolean}
+type AppArgs = { ethUrls :: StrMap String
+               , indexEns :: String
+               , startingNetwork :: String
+               , ensDetails :: EnsDetails
+               , ballotId :: String
+               , democHash :: String
+               , dev :: Boolean}
 
 
 getEnsAddr :: String -> Maybe Address
@@ -113,6 +121,8 @@ app params@{ethUrls, indexEns, startingNetwork, ensDetails} updateF =
         ensAddr <- mToAff ("No ENS Register address provided for network with ID: " <> startingNetwork) $ mkAddress =<< mkHexString =<< StrMap.lookup startingNetwork ensDetails
         indexAddr <- lookupEns indexEns {network: startingNetwork, address: ensAddr}
         log $ "got index addr: " <> show indexAddr
+        democHash <- mToAff "Cannot parse democHash" $ hexToBytesN =<< mkHexString params.democHash
+        log $ "got democHash: " <> show democHash
         ballotId <- mToAff ("Cannot parse ballotId to uint256: " <> params.ballotId) $ uIntNFromBigNumber uint256Px =<< parseBigNumber decimal params.ballotId
         log $ "got ballotId: " <> show ballotId
         let ballotIdHex = Hex.padLeft $ toHexString $ unUIntN ballotId
@@ -121,15 +131,27 @@ app params@{ethUrls, indexEns, startingNetwork, ensDetails} updateF =
         (bbNamespace :: Bytes4) <- mToAff ("Cannot get namespace (bytes4) from ballotId: " <> show ballotId) $ hexToBytesN $ takeHex 8 $ ballotIdHex
         log $ "got bbNamespace: " <> show bbNamespace
         let ixTos = mkTos indexAddr
-        bbFarmId <- runWeb3OrThrow $ getBBFarmID ixTos Latest {bbNamespace}
-        bbFarmAddr <- runWeb3OrThrow $ getBBFarm ixTos Latest {bbFarmId}
+
+        let getErc20 = parallel $ do
+                beAddr <- runWeb3OrThrow $ getBackend ixTos Latest
+                let beTos = mkTos beAddr
+                runWeb3OrThrow $ getDErc20 beTos Latest {democHash}
+        let getBBFarmAddr = parallel $ do
+                bbFarmId <- runWeb3OrThrow $ getBBFarmID ixTos Latest {bbNamespace}
+                runWeb3OrThrow $ getBBFarm ixTos Latest {bbFarmId}
+
+        Tuple erc20Addr bbFarmAddr <- sequential $ Tuple <$> getErc20 <*> getBBFarmAddr
 
         -- TODO: handle bad ballotId
         let bbFarmLoc = {network: startingNetwork, address: bbFarmAddr}
         bInfo <- getBallotInfo {ballotId, bbFarmLoc}
         bSpec <- getBallotSpec bInfo.bHash
+
+        if getBSpecVer bSpec /= 1 then pure unit else do
+            uWarn $ "Warning: BallotSpec v1 is deprecated. Several fields are ignored including: erc20Addr, startTime, endTime. You can ignore this message for proposals voted on before 1st June 2018."
+
         let bbFarmTos = defaultTransactionOptions # _to .~ Just bbFarmAddr
-            ercTos = defaultTransactionOptions # _to .~ Just (bSpec ^. _erc20Addr)
+            ercTos = defaultTransactionOptions # _to .~ Just erc20Addr
             dlgtTos = defaultTransactionOptions # _to .~ Just (dlgtAddr startingNetwork)
 
         ballotAns <- runExceptT $ runBallotCount {bInfo, bSpec, bbFarmTos, ercTos, dlgtTos, silent: false, netId, dev: netId == "42"} updateF
@@ -154,3 +176,5 @@ app params@{ethUrls, indexEns, startingNetwork, ensDetails} updateF =
         exitCode e = if isRight e then 0 else 1
         exitMsgHeader exitC = if exitC == 0 then ">>> SUCCESS <<<" else ">>> ERROR <<<"
         mkBResStrMap bRes = StrMap.fromFoldable $ (\{name, count, nVotes} -> Tuple name {count, nVotes}) <$> bRes
+        uLog msg = (pure <<< updateF $ mkSULog msg) *> log msg
+        uWarn msg = (pure <<< updateF $ mkSUWarn msg) *> warn msg

@@ -1,5 +1,5 @@
 module Test.Main where
-  
+
 import Control.Monad.Eff (Eff)
 import Control.Monad.Eff.Now (NOW)
 import Crypt.NaCl (NACL_RANDOM)

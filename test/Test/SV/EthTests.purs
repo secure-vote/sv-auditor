@@ -21,7 +21,7 @@ import Network.Ethereum.Core.BigNumber (unsafeToInt)
 import Network.Ethereum.Web3 (ChainCursor(..), embed)
 import Network.Ethereum.Web3.Api (eth_getBlockByNumber)
 import Partial.Unsafe (unsafePartial)
-import SV.Light.AuditBallot (findEthBlockEndingInZeroBefore)
+import SV.Light.AuditBallot (findEthBlockBefore)
 import SecureVote.Crypto.Curve25519 (genCurve25519Key, toMessage, decryptOneTimeBallot, encryptOneTimeBallot)
 import SecureVote.Democs.SwarmMVP.BallotContract (getBlockTimestamp, setWeb3Provider)
 import SecureVote.Utils.ArrayBuffer (fromHex, toHex, ui8FromArray)
@@ -30,7 +30,6 @@ import Test.SV.Types (SpecType)
 import Test.Spec (it)
 import Test.Spec.Assertions (shouldEqual)
 import Test.Spec.QuickCheck (quickCheck)
-
 
 
 ethTests :: forall e. SpecType e
@@ -51,7 +50,7 @@ runBlockTest = do
     blockLatest <- map unwrap $ eToAff =<< (runWeb3Prod $ eth_getBlockByNumber Latest)
     log $ "ts:" <> show (unsafeToInt blockZero.timestamp) <> "," <> show (unsafeToInt blockLatest.timestamp)
     targetBlockTs <- liftEff $ randomInt (unsafeToInt blockZero.timestamp) (unsafeToInt blockLatest.timestamp)
-    foundBlockN <- findEthBlockEndingInZeroBefore targetBlockTs
+    foundBlockN <- findEthBlockBefore targetBlockTs
     let nextBlockN = foundBlockN + 1
     blockTs <- getBlockTimestamp foundBlockN
     blockNextTs <- getBlockTimestamp nextBlockN

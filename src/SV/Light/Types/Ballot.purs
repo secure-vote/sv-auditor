@@ -2,39 +2,55 @@ module SV.Light.Types.Ballot where
 
 import SV.Prelude
 
+import Control.Alt ((<|>))
+import Control.Apply (lift2)
+import Control.Monad.Error.Class (throwError)
+import Control.Monad.Except (catchError, runExcept)
 import Data.Array (length)
-import Data.Foreign (Foreign)
+import Data.Foreign (Foreign, F)
 import Data.Newtype (class Newtype)
-import Data.Record.ShowRecord (showRecord)
+import Data.Record.ShowRecord (class ShowRowList, showRecord)
+import Debug.Trace (spy)
 import Global.Unsafe (unsafeStringify)
+import Network.Ethereum.Web3.Solidity.Sizes (s1)
 import Network.Ethereum.Web3.Types (Address, HexString, mkAddress, mkHexString)
+import SV.Light.Types.Never (Never)
 import SecureVote.Utils.Json (mkFErr)
-import Simple.JSON (class ReadForeign, read')
+import Simple.JSON (class ReadForeign, read', readImpl)
+import Type.Row (class RowToList)
 
 
 data BallotSpec
     = BVer01 BSpec01Impl
+    | BVer02 BSpec02Impl OptsOuter
 
-
+derive instance eqBallotSpec :: Eq BallotSpec
 instance showBSpec :: Show BallotSpec where
     show bs = case bs of
-        BVer01 a -> "( BallotSpec Version 01 => " <> showRecord a <> " )"
+        BVer01 a -> showB "01" a
+        BVer02 b o -> showB "02" {ballot: b, options: o}
+      where
+        showB :: forall fs rs. RowToList fs rs => ShowRowList rs fs => String -> Record ( | fs) -> String
+        showB vStr rec = "( BallotSpec Version " <> vStr <> " => " <> showRecord rec <> " )"
 
 
 data BallotSpecChoice
     = BChoice01
+    | BChoice02
 
 
 bSpecChoiceToStr :: BallotSpecChoice -> String
 bSpecChoiceToStr c =
     case c of
-        BChoice01 -> "Standard Ballot (v01)"
+        BChoice01 -> "(Deprecated) Ballot (v01)"
+        BChoice02 -> "Standard Ballot (v02)"
 
 
 getTitle :: BallotSpec -> String
 getTitle b =
     case b of
         BVer01 d -> d.ballotTitle
+        BVer02 d o -> d.ballotTitle
 
 
 type BSpec01Impl =
@@ -48,6 +64,16 @@ type BSpec01Impl =
     , binding :: Boolean
     , encryptionPK :: Maybe HexString
     , options :: OptsOuter
+    }
+
+
+type BSpec02Impl =
+    { ballotTitle :: String
+    , shortDesc :: String
+    , longDesc :: String
+    , subgroup :: Maybe Never
+    , discussionLink :: Maybe String
+    , encryptionPK :: Maybe HexString
     }
 
 
@@ -103,9 +129,12 @@ data SimpleVer
 
 derive instance eqSimpleV :: Eq SimpleVer
 
-type ReadBSpecStage1 = { ballotVersion :: Int, ballotInner :: Foreign }
+type ReadBSpecStage1Row = ( ballotVersion :: Int, ballotInner :: Foreign )
+type ReadBSpecStage1 = { | ReadBSpecStage1Row }
+type ReadBSpecWOptsStage1 = { optionsVersion :: Int, ballotInner :: Foreign }
 
-type ReadOptsOuterStage1 = { optionsVersion :: Int, options :: Maybe Foreign }
+type ReadOptsOuterBV1 = { optionsVersion :: Int, options :: Maybe Foreign }
+type ReadOptsOuterBV2 = { optionsVersion :: Int, optionsInner :: {options :: Maybe Foreign, aux :: Maybe Foreign}}
 
 
 instance readFBallotSpec :: ReadForeign BallotSpec where
@@ -113,33 +142,48 @@ instance readFBallotSpec :: ReadForeign BallotSpec where
         (s1 :: ReadBSpecStage1) <- read' a
         case s1.ballotVersion of
             1 -> b01Conv =<< read' s1.ballotInner
-            _ -> mkFErr $ "Invalid BallotSpec: " <> unsafeStringify s1.ballotInner
+            2 -> join $ (b02Conv <$> read' a <*> (read' a))
+            _ -> mkFErr $ "Invalid BallotSpec: " <> unsafeStringify a
       where
-        b01Conv b@{encryptionPK, erc20Addr} = do
+        b01Conv b = do
+            let {encryptionPK, erc20Addr} = b
             (erc_ :: Address) <- fromMaybe (mkFErr "Cannot convert erc20Addr to addr") (pure <$> (mkAddress =<< mkHexString =<< erc20Addr :: Maybe String))
-            -- go from Maybe String -> Maybe Maybe HexString -> F (Maybe HexString)
-            (encPk_ :: Maybe HexString) <- case encryptionPK of
-                Nothing -> pure Nothing
-                Just ePK -> fromMaybe (mkFErr "Cannot convert erc20Addr to addr") (map (pure <<< Just) $ mkHexString ePK :: Maybe HexString)
+            encPk_ <- strToHexIfJust encryptionPK
             pure $ BVer01 $ b {encryptionPK = encPk_, erc20Addr = erc_}
+        b02Conv (a' :: ReadBSpecWOptsStage1) (o :: OptsOuter) = do
+            b <- read' a'.ballotInner
+            encPK <- strToHexIfJust b.encryptionPK
+            pure $ BVer02 (b {encryptionPK = encPK}) o
         mkExcept = pure
+        -- | this only throws if the _conversion_ to `Maybe HexString` fails; `Nothing`s just pass through
+        strToHexIfJust :: Maybe String -> F (Maybe HexString)
+        strToHexIfJust = maybe (pure Nothing) (fromMaybe (mkFErr "Cannot convert encPK to HexString") <<< (map (pure <<< Just) <<< mkHexString))
 
 
 instance readFOptsOuter :: ReadForeign OptsOuter where
     readImpl a = do
-        (s1 :: ReadOptsOuterStage1) <- read' a
-        case s1.optionsVersion of
-            1 -> opt01Conv =<< read' =<< (fromMaybe (mkFErr "OptionsV01 expected SimpleOptions but got Nothing") (pure <$> s1.options))
-            2 -> reqNothing s1.options *> pure (opt02Conv s1)
-            3 -> reqNothing s1.options *> pure (opt03Conv s1)
-            _ -> mkFErr $ "Invalid Options in BallotSpec: " <> unsafeStringify s1.options
+        catchError (readOptsBV1 a) (\e -> readOptsBV2 a <|> throwError e)
       where
+        readOptsBV1 a = do
+            s1 :: ReadOptsOuterBV1 <- read' a
+            mkOptsOuter s1.optionsVersion s1.options
+        readOptsBV2 a = do
+            s1 :: ReadOptsOuterBV2 <- read' a
+            reqNothing "aux" s1.optionsInner.aux
+            optsOuter <- mkOptsOuter s1.optionsVersion s1.optionsInner.options
+            pure optsOuter
+        mkOptsOuter ver opts = case ver of
+                1 -> opt01Conv =<< read' =<< (fromMaybe (mkFErr "OptionsV01 expected SimpleOptions but got Nothing") (pure <$> opts))
+                2 -> reqNothing' opts *> pure OptsBinary
+                3 -> reqNothing' opts *> pure OptsPetition
+                _ -> mkFErr $ "Invalid OptionsVersion " <> show ver
         opt01Conv options = do
             opts :: Array SimpleOption <- read' options
             pure $ OptsSimple RangeVotingPlusMinus3 opts
-        opt02Conv o = OptsBinary
-        opt03Conv o = OptsPetition
-        reqNothing m = fromMaybe (mkFErr $ "Expected nothing for `options` but got: " <> unsafeStringify m) (pure <$> m)
+        reqNothing' = reqNothing "options"
+
+reqNothing :: forall a. String -> Maybe a -> F Unit
+reqNothing name m = if isNothing m then pure unit else mkFErr $ "Expected nothing for `" <> name <> "` but got: " <> unsafeStringify m
 
 
 instance readSimpleOption :: ReadForeign SimpleOption where

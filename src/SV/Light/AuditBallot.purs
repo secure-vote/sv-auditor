@@ -391,7 +391,10 @@ findEthBlockBefore targetTime = do
                 GT -> _findLastEthBlockBefore tTime {hTs: newTs, hB: testBlockN, lTs, lB}
                 EQ -> pure $ testBlockN
                 LT -> if hB - lB == 1 then pure $ lB else _findLastEthBlockBefore tTime {hTs, hB, lTs: newTs, lB: testBlockN}
-    getBlockTimestamp blkNum = runWeb3_ (eth_getBlockByNumber (BN $ wrap $ embed blkNum)) >>= eToAff <#> (\(Block b) -> b.timestamp # unsafeToInt)
+
+
+getBlockTimestamp :: Int -> Aff _ Int
+getBlockTimestamp blkNum = runWeb3_ (eth_getBlockByNumber (BN $ wrap $ embed blkNum)) >>= eToAff <#> (\(Block b) -> b.timestamp # unsafeToInt)
 
 
 type GetVoteLoopInput = {ballotMap :: BallotMap, delegateMap :: DelegateMap, p :: {origVoter :: Address, bal :: BigNumber, vtr :: Address}}

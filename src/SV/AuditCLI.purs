@@ -35,7 +35,7 @@ main = do
     --                         <$> yarg "e" ["ethNode"] (Just "HTTP URL of Eth node") (Left "https://mainnet.eth.secure.vote:8545/ballotAudit") true
     --                         <*> yarg "bScAddr" [] (Just "The Ethereum contract address of the ballot box") (Right "The Ballot Box Smart Contract address is required.") true
     --                         <*> flag "dev" [] (Just "Whether to use dev mode")
-    let args = {ballotId: "", ensDetails: StrMap.empty, ethUrls: StrMap.empty, indexEns: "", startingNetwork: "", dev: true}
+    let args = {ballotId: "", ensDetails: StrMap.empty, ethUrls: StrMap.empty, indexEns: "", startingNetwork: "", democHash: "", dev: true}
 
     launchAff_ do
         resE <- app args (\_ -> unit)
