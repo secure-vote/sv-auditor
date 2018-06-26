@@ -113,7 +113,7 @@ app params@{ethUrls, indexEns, startingNetwork, ensDetails} updateF =
     do
         let usingKovan = startingNetwork == "42"
             netId = startingNetwork
-        if usingKovan then log "-- DEV MODE (Kovan) --" else pure unit
+        if usingKovan then uLog "-- DEV MODE (Kovan) --" else pure unit
         providerUrl <- mToAff ("No URL provided for network with ID: " <> startingNetwork) $ StrMap.lookup startingNetwork ethUrls
         liftEff $ setProvider providerUrl
 
@@ -122,12 +122,12 @@ app params@{ethUrls, indexEns, startingNetwork, ensDetails} updateF =
         indexAddr <- lookupEns indexEns {network: startingNetwork, address: ensAddr}
         log $ "got index addr: " <> show indexAddr
         democHash <- mToAff "Cannot parse democHash" $ hexToBytesN =<< mkHexString params.democHash
-        log $ "got democHash: " <> show democHash
+        uLog $ "Using democHash: " <> show democHash
         ballotId <- mToAff ("Cannot parse ballotId to uint256: " <> params.ballotId) $ uIntNFromBigNumber uint256Px =<< parseBigNumber decimal params.ballotId
         log $ "got ballotId: " <> show ballotId
         let ballotIdHex = Hex.padLeft $ toHexString $ unUIntN ballotId
-        log $ "ballotId as hex: " <> show ballotIdHex
-        log $ "ballotId first 4 bytes as hex: " <> show (takeHex 4 $ ballotIdHex)
+        uLog $ "Using ballotId: " <> show ballotIdHex
+        log $ "ballotId first 4 bytes as hex: " <> show (takeHex 8 $ ballotIdHex)
         (bbNamespace :: Bytes4) <- mToAff ("Cannot get namespace (bytes4) from ballotId: " <> show ballotId) $ hexToBytesN $ takeHex 8 $ ballotIdHex
         log $ "got bbNamespace: " <> show bbNamespace
         let ixTos = mkTos indexAddr
@@ -142,13 +142,16 @@ app params@{ethUrls, indexEns, startingNetwork, ensDetails} updateF =
 
         Tuple erc20Addr bbFarmAddr <- sequential $ Tuple <$> getErc20 <*> getBBFarmAddr
 
+        uLog $ "Using ERC20 address: " <> show erc20Addr
+        uLog $ "Votes stored under ballotId at address: " <> show bbFarmAddr
+
         -- TODO: handle bad ballotId
         let bbFarmLoc = {network: startingNetwork, address: bbFarmAddr}
         bInfo <- getBallotInfo {ballotId, bbFarmLoc}
         bSpec <- getBallotSpec bInfo.bHash
 
         if getBSpecVer bSpec /= 1 then pure unit else do
-            uWarn $ "Warning: BallotSpec v1 is deprecated. Several fields are ignored including: erc20Addr, startTime, endTime. You can ignore this message for proposals voted on before 1st June 2018."
+            uWarn $ "Warning: This proposal uses BallotSpec v1, which is deprecated. Several fields are ignored including: erc20Addr, startTime, endTime. You can safely ignore this message for proposals voted on before 1st June 2018."
 
         let bbFarmTos = defaultTransactionOptions # _to .~ Just bbFarmAddr
             ercTos = defaultTransactionOptions # _to .~ Just erc20Addr
