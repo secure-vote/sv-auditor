@@ -13,7 +13,7 @@ import Network.Ethereum.Web3 (ChainCursor(..), _to, defaultTransactionOptions, m
 import Partial.Unsafe (unsafePartial)
 import SV.Light.AuditBallot (getBallotInfo, getBallotSpec)
 import SV.Light.Delegation (findDelegatorsRecursive)
-import SV.Light.SmartContract (mkSC)
+import SV.Light.SmartContracts (mkSC)
 import SV.Light.Types.Ballot (BallotSpec(..), OptsOuter(..))
 import SV.Light.Types.RunBallot (SmartContract)
 import SecureVote.Web3.Web3 (EthNetwork(..), setNetwork)

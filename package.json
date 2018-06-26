@@ -56,9 +56,9 @@
     "audit-dev-web": "pulp -w browserify --standalone SvAudit --main SV.AuditWeb -j 2 --to _pureDist/audit-web.js --skip-entry-point -O",
     "admin-dev": "pulp -w build --main SecureVote.Democs.SwarmMVP.Admin -j 2 --to _pureDist/admin.js",
     "admin-prod": "pulp build --main SecureVote.Democs.SwarmMVP.Admin -j 2 --to _pureDist/admin.js",
-    "purs-test": "pulp -w test --test-path test",
-    "purs-test-no-watch": "pulp test --test-path test",
-    "purs-gen-contracts": "./makeWeb3ContractsForPurs.sh",
+    "test": "pulp -w test --test-path test",
+    "test-no-watch": "pulp test --test-path test",
+    "gen-contracts": "./makeWeb3ContractsForPurs.sh",
     "build-audit-web": "./build_prod_audit_web.sh"
   }
 }
