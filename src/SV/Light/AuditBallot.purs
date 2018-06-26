@@ -122,7 +122,7 @@ runBallotCount :: RunBallotArgs -> (_ -> Unit) -> ExceptT String (Aff _) BallotR
 runBallotCount {bInfo, bSpec, bbFarmTos, ercTos, dlgtTos, silent, netId, dev} updateF = do
     nowTime <- lift $ liftEff $ round <$> currentTimestamp
     -- todo: use ballotInfo start and end times (from SC)
-    let endTime = bSpec ^. _endTime
+    let endTime = bInfo.endTime
         startTime = bInfo.startTime
         tknAddr = unsafePartial fromJust $ ercTos ^. _to
     log $ "Ballot StartTime: " <> show startTime <> ", Ballot EndTime: " <> show endTime <> ", Current Time: " <> show nowTime
