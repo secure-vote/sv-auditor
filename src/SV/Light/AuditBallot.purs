@@ -130,9 +130,10 @@ runBallotCount {bInfo, bSpec, bbFarmTos, ercTos, dlgtTos, silent, netId, dev} up
     let ballotOptions = bSpec ^. _options
 
     blocksFibre <- lift $ forkAff $ do
-        logAff $ "Finding Eth block close to time: " <> show startTime <> " (takes 10-20 seconds)"
+        let _endTime = min nowTime endTime
+        logAff $ "Finding Eth blocks close to times: " <> show (Tuple startTime _endTime) <> " (takes 10-20 seconds)"
         blocks <- sequential $ Tuple <$> parallel (findEthBlockBefore startTime)
-                                         <*> parallel (findEthBlockBefore $ min nowTime endTime)
+                                     <*> parallel (findEthBlockBefore _endTime)
         logAff $ "Using start/end blocks " <> show blocks <> " for ERC20 balances and delegation."
         pure blocks
 
@@ -349,30 +350,31 @@ findEthBlockBefore targetTime = do
         <$> parallel (getBlockTimestamp currBlock)
         <*> parallel (getBlockTimestamp initLowBlock)
 
-    -- take a guess first to try and get close
-    let ts1Scaled = (toNumber $ (targetTime - lowTs) / 100000)
-        ts2Scaled = (toNumber $ (currBlockTs - lowTs) / 100000)
-        bScaled = (toNumber $ (currBlock - initLowBlock) / 1000)
-    let midStep = (ts1Scaled * bScaled) / ts2Scaled
-    let finalStepF = add initLowBlock <<< mul 1000 <<< DInt.round
-    let gBH = min (finalStepF $ midStep * 1.1) currBlock
-    let gBL = max (finalStepF $ midStep * 0.9) initLowBlock
-    Tuple gHTs gLTs <- sequential $ Tuple <$> parallel (getBlockTimestamp gBH) <*> parallel (getBlockTimestamp gBL)
+    if currBlockTs <= targetTime then pure currBlock else do
+        -- take a guess first to try and get close
+        let ts1Scaled = (toNumber $ (targetTime - lowTs) / 100000)
+            ts2Scaled = (toNumber $ (currBlockTs - lowTs) / 100000)
+            bScaled = (toNumber $ (currBlock - initLowBlock) / 1000)
+        let midStep = (ts1Scaled * bScaled) / ts2Scaled
+        let finalStepF = add initLowBlock <<< mul 1000 <<< DInt.round
+        let gBH = min (finalStepF $ midStep * 1.1) currBlock
+        let gBL = max (finalStepF $ midStep * 0.9) initLowBlock
+        Tuple gHTs gLTs <- sequential $ Tuple <$> parallel (getBlockTimestamp gBH) <*> parallel (getBlockTimestamp gBL)
 
-    AffC.log $ "Searching for block with targetTs: " <> show targetTime <> ", currBlockTs: " <> show currBlockTs <> ", currBlock: " <> show currBlock
-    let runF = _findLastEthBlockBefore targetTime
-    if currBlockTs < targetTime || targetTime < lowTs
-        then throwError $ error $ "Cannot find Eth block at " <> show targetTime <> " because it is outside range: " <> show lowTs <> ", " <> show currBlockTs
-        else case Tuple (compare gHTs targetTime) (compare gLTs targetTime) of
-            -- if upper guess is LT target time
-            Tuple LT _ -> runF {hTs: currBlockTs, hB: currBlock, lTs: gHTs, lB: gBH}
-            -- if lower guess is GT target time
-            Tuple _ GT -> runF {hTs: gLTs, hB: gBL, lTs: lowTs, lB: initLowBlock}
-            -- if we hit the money in any way
-            Tuple EQ _ -> pure gBH
-            Tuple _ EQ -> pure gBL
-            -- otherwise we're in between
-            Tuple GT LT -> runF {hTs: gHTs, hB: gBH, lTs: gLTs, lB: gBL}
+        AffC.log $ "Searching for block with targetTs: " <> show targetTime <> ", currBlockTs: " <> show currBlockTs <> ", currBlock: " <> show currBlock
+        let runF = _findLastEthBlockBefore targetTime
+        if currBlockTs < targetTime || targetTime < lowTs
+            then throwError $ error $ "Cannot find Eth block at " <> show targetTime <> " because it is outside range: " <> show lowTs <> ", " <> show currBlockTs
+            else case Tuple (compare gHTs targetTime) (compare gLTs targetTime) of
+                -- if upper guess is LT target time
+                Tuple LT _ -> runF {hTs: currBlockTs, hB: currBlock, lTs: gHTs, lB: gBH}
+                -- if lower guess is GT target time
+                Tuple _ GT -> runF {hTs: gLTs, hB: gBL, lTs: lowTs, lB: initLowBlock}
+                -- if we hit the money in any way
+                Tuple EQ _ -> pure gBH
+                Tuple _ EQ -> pure gBL
+                -- otherwise we're in between
+                Tuple GT LT -> runF {hTs: gHTs, hB: gBH, lTs: gLTs, lB: gBL}
   where
     _findLastEthBlockBefore :: Int -> {hTs :: Int, hB :: Int, lTs :: Int, lB :: Int} -> Aff _ Int
     _findLastEthBlockBefore tTime {hTs, hB, lTs, lB} = do
