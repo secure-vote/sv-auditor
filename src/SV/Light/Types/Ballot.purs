@@ -131,13 +131,10 @@ derive instance eqSimpleV :: Eq SimpleVer
 
 type ReadBSpecStage1Row = ( ballotVersion :: Int, ballotInner :: Foreign )
 type ReadBSpecStage1 = { | ReadBSpecStage1Row }
-type ReadBSpecWOptsStage1 = { optionsVersion :: Int, optionsInner :: {options :: Maybe Foreign, aux :: Maybe Foreign}, ballotInner :: Foreign }
+type ReadBSpecWOptsStage1 = { optionsVersion :: Int, ballotInner :: Foreign }
 
 type ReadOptsOuterBV1 = { optionsVersion :: Int, options :: Maybe Foreign }
-type ReadOptsOuterBV2 = { optionsVersion :: Int, optionsInner :: Maybe Foreign }
-
-
-l msg = pure (spy msg) *> pure unit
+type ReadOptsOuterBV2 = { optionsVersion :: Int, optionsInner :: {options :: Maybe Foreign, aux :: Maybe Foreign}}
 
 
 instance readFBallotSpec :: ReadForeign BallotSpec where
@@ -172,18 +169,21 @@ instance readFOptsOuter :: ReadForeign OptsOuter where
             mkOptsOuter s1.optionsVersion s1.options
         readOptsBV2 a = do
             s1 :: ReadOptsOuterBV2 <- read' a
-            optsOuter <- mkOptsOuter s1.optionsVersion s1.optionsInner
-            -- reqNothing s1.aux
+            reqNothing "aux" s1.optionsInner.aux
+            optsOuter <- mkOptsOuter s1.optionsVersion s1.optionsInner.options
             pure optsOuter
         mkOptsOuter ver opts = case ver of
                 1 -> opt01Conv =<< read' =<< (fromMaybe (mkFErr "OptionsV01 expected SimpleOptions but got Nothing") (pure <$> opts))
-                2 -> reqNothing opts *> pure OptsBinary
-                3 -> reqNothing opts *> pure OptsPetition
+                2 -> reqNothing' opts *> pure OptsBinary
+                3 -> reqNothing' opts *> pure OptsPetition
                 _ -> mkFErr $ "Invalid OptionsVersion " <> show ver
         opt01Conv options = do
             opts :: Array SimpleOption <- read' options
             pure $ OptsSimple RangeVotingPlusMinus3 opts
-        reqNothing m = if isNothing m then pure unit else mkFErr $ "Expected nothing for `options` but got: " <> unsafeStringify m
+        reqNothing' = reqNothing "options"
+
+reqNothing :: forall a. String -> Maybe a -> F Unit
+reqNothing name m = if isNothing m then pure unit else mkFErr $ "Expected nothing for `" <> name <> "` but got: " <> unsafeStringify m
 
 
 instance readSimpleOption :: ReadForeign SimpleOption where
