@@ -28,7 +28,7 @@ countPetition weightedBallots =
         invalidCount = foldr (\c sum -> c + sum) (embed 0) resultsMap - countYes - countNo
 
         nVotesMap = foldr (\{ballot: {ballot}, bal} m ->
-                            Map.alter (fromMaybe 0 >>> (+) 1 >>> Just) ballot m)
+                            Map.alter (fromMaybe 0 >>> (+) 1 >>> Just) (modBallot ballot) m)
                         Map.empty weightedBallots
         getNVotes matchThis = fromMaybe 0 $ Map.lookup matchThis nVotesMap
         nVotesYes = getNVotes signedPetition
