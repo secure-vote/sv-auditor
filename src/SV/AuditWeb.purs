@@ -6,8 +6,10 @@ import Control.Monad.Aff (launchAff_, message)
 import Control.Monad.Aff.Console as AffC
 import Control.Monad.Error.Class (catchError)
 import Data.Argonaut.Core as J
+import Data.Foreign (Foreign)
 import Data.Int (toNumber)
 import Data.Map (Map, toUnfoldable)
+import Data.Record.ShowRecord (showRecord)
 import Data.StrMap as SMap
 import Data.StrMap as StrMap
 import Global.Unsafe (unsafeStringify)
@@ -18,7 +20,7 @@ import Partial.Unsafe (unsafePartial)
 import SV.Light.AuditApp (app, AppArgs)
 import SV.Types.OutboundLogs (SUAux(..), OutAllDeets)
 import SV.Utils.BigNumber (bnToStr)
-import Simple.JSON (write, writeJSON)
+import Simple.JSON (read, write, writeJSON)
 
 
 sToAddrUnsafe = unsafePartial fromJust <<< (mkAddress <=< mkHexString)
@@ -28,8 +30,8 @@ testArgs =
     , indexEns: "index-v1.kov.sv"
     , startingNetwork: "42"
     , ensDetails: StrMap.fromFoldable [Tuple "1" (sToAddrUnsafe "0x314159265dD8dbb310642f98f50C066173C1259b"), Tuple "42" (sToAddrUnsafe "0xd6F4f22eeC158c434b17d01f62f5dF33b108Ae93")]
-    , ballotId: "50282030322211705750201517969034130535463358470884956019831293948856"
-    , democHash: "0x314159265dD8dbb310642f98f50C066173C1259b" -- note, this won't work
+    , ballotId: "47896678007829051495615025535884532296074979485673781849910563266440"
+    , democHash: "0xd4abdb87f76560cffa0a48dc5d974eb53cdf42a166c1807787b168007f5ac550"
     , dev: true
     }
 
@@ -37,11 +39,12 @@ testArgs =
 version = "2.0.0"
 
 
-main :: forall a e eff. AppArgs -> (J.Json -> Unit) -> Eff _ Unit
-main args updateF = launchAff_ $ do
+main :: forall a e eff. Foreign -> (J.Json -> Unit) -> Eff _ Unit
+main args_ updateF = launchAff_ $ do
     let updateF_ = updateF2 updateF
     let failErrorCode = 1
-    AffC.log $ "AuditWeb starting with args: " <> unsafeStringify args
+    args <- eToAff $ read args_
+    AffC.log $ "AuditWeb starting with args: " <> showRecord args
     _ <- catchError (app args updateF_) \e -> do
                 let _ = updateF_ {t: "fail", p: SuStr $ message e}
                 pure $ Left $ Tuple failErrorCode $ message e
