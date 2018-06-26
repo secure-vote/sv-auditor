@@ -29,6 +29,7 @@ testArgs =
     , startingNetwork: "42"
     , ensDetails: StrMap.fromFoldable [Tuple "1" (sToAddrUnsafe "0x314159265dD8dbb310642f98f50C066173C1259b"), Tuple "42" (sToAddrUnsafe "0xd6F4f22eeC158c434b17d01f62f5dF33b108Ae93")]
     , ballotId: "50282030322211705750201517969034130535463358470884956019831293948856"
+    , democHash: "0x314159265dD8dbb310642f98f50C066173C1259b" -- note, this won't work
     , dev: true
     }
 

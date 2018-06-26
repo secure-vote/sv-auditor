@@ -26,6 +26,12 @@ getFromBSpec {gV01, gV02} b = case b of
     BVer02 b o -> gV02 b o
 
 
+getBSpecVer :: BallotSpec -> Int
+getBSpecVer b = case b of
+    BVer01 _ -> 1
+    BVer02 _ _ -> 2
+
+
 setFromBSpec :: forall a. BSpecSetters a -> BallotSpec -> a -> BallotSpec
 setFromBSpec {sV01, sV02} b thing = case b of
     BVer01 bs -> BVer01 $ sV01 bs thing
