@@ -36,7 +36,7 @@ testArgs =
     }
 
 
-version = "2.0.0"
+version = "2.0.1"
 
 
 main :: forall a e eff. Foreign -> (J.Json -> Unit) -> Eff _ Unit

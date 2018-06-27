@@ -6,11 +6,11 @@ OUTPUT_CACHE="./node_modules/__cache__output"
 # netlify sample: > added 1 package and removed 507 packages in 6.684s
 yarn install $YARN_FLAGS
 
-if [ -n "$BRANCH" ] && [ "$BRANCH" = "master" ]; then
-  bower cache clean
-  rm -rf bower_components
-  bower install
-fi
+# if [ -n "$BRANCH" ] && [ "$BRANCH" = "master" ]; then
+#   bower cache clean
+#   rm -rf bower_components
+#   bower install
+# fi
 
 if [ -d "$OUTPUT_CACHE" ]; then
   echo "\n\n## COPYING ./output CACHE ##"
