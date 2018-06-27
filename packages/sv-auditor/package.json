@@ -1,6 +1,6 @@
 {
   "name": "sv-auditor",
-  "version": "2.0.0",
+  "version": "2.0.1",
   "description": "SecureVote Auditing Suite",
   "main": "./dist/audit-web.js",
   "repository": "git@github.com/secure-vote/sv-auditor",
@@ -8,7 +8,5 @@
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "author": "Max Kaye <max@secure.vote>",
-  "license": "UNLICENSED",
-  "dependencies": {
-  }
+  "license": "UNLICENSED"
 }
