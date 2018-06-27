@@ -19,7 +19,7 @@ if [ -d "$OUTPUT_CACHE" ]; then
   echo -e "\n\n"
 fi
 
-yarn audit-prod-web
+npm run audit-prod-web
 
 echo -e "\n\n## Caching ./output ##\n\n"
 rm -rf "$OUTPUT_CACHE"
